@@ -1,0 +1,29 @@
+{
+  "name": "patchpilots",
+  "version": "0.1.0",
+  "description": "A team of AI agents that reviews and improves your code automatically",
+  "type": "module",
+  "bin": {
+    "patchpilots": "./dist/bin/patchpilots.js"
+  },
+  "scripts": {
+    "dev": "tsx bin/patchpilots.ts",
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "keywords": ["ai", "code-review", "agents", "claude", "cli"],
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "chalk": "^5.4.0",
+    "commander": "^13.0.0",
+    "glob": "^11.0.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.0.0"
+  }
+}
