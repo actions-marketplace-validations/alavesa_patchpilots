@@ -22,7 +22,7 @@ A team of AI agents that reviews and improves your code automatically.
     Your code crew is ready. One dev. Six agents. Zero bugs.
 ```
 
-**One designer. Six AI agents. Zero excuses.**
+**One dev. Six AI agents. Zero excuses.**
 
 Built for solo developers and hobby projects — when you don't have a team to review your PRs, PatchPilots is your crew.
 
