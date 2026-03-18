@@ -3,6 +3,7 @@ import { loadConfig } from "../../core/config.js";
 import { Orchestrator } from "../../core/orchestrator.js";
 import { setVerbose } from "../../utils/logger.js";
 import { log } from "../../utils/logger.js";
+import { playBanner } from "../../utils/banner.js";
 
 export function registerReviewCommand(program: Command): void {
   program
@@ -15,6 +16,7 @@ export function registerReviewCommand(program: Command): void {
     .option("--verbose", "Show token usage and timing", false)
     .action(async (targetPath: string, opts) => {
       try {
+        if (!opts.json) await playBanner();
         if (opts.verbose) setVerbose(true);
 
         const config = loadConfig(targetPath, {
