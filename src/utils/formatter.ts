@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import type { ReviewResult, ReviewFinding, CoderResult, Severity } from "../types/index.js";
+import type { ReviewResult, ReviewFinding, CoderResult, TestResult, Severity } from "../types/index.js";
 
 const SEVERITY_COLORS: Record<Severity, (text: string) => string> = {
   critical: chalk.red.bold,
@@ -103,6 +103,37 @@ export function formatCoderResult(result: CoderResult): string {
     lines.push("");
   }
 
+  lines.push(`  ${chalk.gray(result.summary)}`);
+  lines.push("");
+
+  return lines.join("\n");
+}
+
+export function formatTestResult(result: TestResult): string {
+  const lines: string[] = [];
+
+  lines.push("");
+  lines.push(chalk.bold.underline("Generated Tests"));
+  lines.push("");
+
+  if (result.testFiles.length === 0) {
+    lines.push(chalk.yellow("  No tests generated — source files may be type-only."));
+    lines.push("");
+    return lines.join("\n");
+  }
+
+  for (const file of result.testFiles) {
+    lines.push(chalk.bold(`  🧪 ${file.path}`) + chalk.gray(` (${file.testCount} tests, from ${file.sourceFile})`));
+    lines.push("");
+    // Show the test content with syntax highlighting hint
+    for (const line of file.content.split("\n")) {
+      lines.push(chalk.gray("    ") + line);
+    }
+    lines.push("");
+  }
+
+  const totalTests = result.testFiles.reduce((sum, f) => sum + f.testCount, 0);
+  lines.push(chalk.bold("  Summary: ") + chalk.green(`${totalTests} tests`) + ` across ${result.testFiles.length} file(s)`);
   lines.push(`  ${chalk.gray(result.summary)}`);
   lines.push("");
 

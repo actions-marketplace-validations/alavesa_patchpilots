@@ -27,3 +27,15 @@ export interface CoderResult {
   improvedFiles: ImprovedFile[];
   summary: string;
 }
+
+export interface TestFile {
+  path: string;
+  sourceFile: string;
+  content: string;
+  testCount: number;
+}
+
+export interface TestResult {
+  testFiles: TestFile[];
+  summary: string;
+}

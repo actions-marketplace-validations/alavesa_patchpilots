@@ -3,11 +3,12 @@ import { resolve } from "node:path";
 import { LLMClient } from "./llm-client.js";
 import { ReviewerAgent } from "../agents/reviewer.js";
 import { CoderAgent } from "../agents/coder.js";
+import { TesterAgent } from "../agents/tester.js";
 import { collectFiles } from "../utils/files.js";
-import { formatReviewResult, formatCoderResult, formatJson } from "../utils/formatter.js";
+import { formatReviewResult, formatCoderResult, formatTestResult, formatJson } from "../utils/formatter.js";
 import { log } from "../utils/logger.js";
 import type { PatchPilotsConfig } from "../types/index.js";
-import type { ReviewResult, CoderResult } from "../types/review.js";
+import type { ReviewResult, CoderResult, TestResult } from "../types/review.js";
 
 export interface OrchestratorOptions {
   json?: boolean;
@@ -15,6 +16,7 @@ export interface OrchestratorOptions {
   write?: boolean;
   backup?: boolean;
   severity?: string;
+  framework?: string;
 }
 
 export class Orchestrator {
@@ -142,5 +144,50 @@ export class Orchestrator {
     }
 
     return { review: reviewResult, coder: coderResult };
+  }
+
+  async generateTests(targetPath: string, options: OrchestratorOptions = {}): Promise<TestResult> {
+    log.step("Collecting files...");
+    const files = await collectFiles(targetPath, this.config);
+
+    if (files.length === 0) {
+      log.warn("No matching files found.");
+      return { testFiles: [], summary: "No files to test." };
+    }
+
+    log.info(`Found ${files.length} file(s) to generate tests for`);
+    if (options.verbose) {
+      for (const f of files) log.verbose(`  ${f.path}`);
+    }
+
+    log.step("🧪 Tester agent generating tests...");
+    const onToken = this.createStreamCallback(options.verbose ?? false);
+    const tester = new TesterAgent(this.llmClient, options.framework ?? "vitest");
+    const result = await tester.execute({ files, config: this.config }, onToken);
+    const testResult = result.data as TestResult;
+
+    if (options.verbose) {
+      console.error("");
+      log.verbose(`Tokens used: ${result.tokensUsed.input} in / ${result.tokensUsed.output} out`);
+    }
+
+    if (options.json) {
+      console.log(formatJson(testResult));
+    } else {
+      console.log(formatTestResult(testResult));
+    }
+
+    // Write test files if requested
+    if (options.write && testResult.testFiles.length > 0) {
+      for (const file of testResult.testFiles) {
+        const absPath = resolve(file.path);
+        writeFileSync(absPath, file.content, "utf-8");
+        log.success(`Created ${file.path}`);
+      }
+    } else if (!options.write && testResult.testFiles.length > 0) {
+      log.info("Dry run — use --write to write test files to disk.");
+    }
+
+    return testResult;
   }
 }

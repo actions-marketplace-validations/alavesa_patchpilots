@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { registerReviewCommand } from "./commands/review.js";
 import { registerImproveCommand } from "./commands/improve.js";
+import { registerTestCommand } from "./commands/test.js";
 
 export function createProgram(): Command {
   const program = new Command();
@@ -12,6 +13,7 @@ export function createProgram(): Command {
 
   registerReviewCommand(program);
   registerImproveCommand(program);
+  registerTestCommand(program);
 
   return program;
 }
