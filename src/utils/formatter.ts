@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import type { ReviewResult, ReviewFinding, CoderResult, TestResult, Severity } from "../types/index.js";
+import type { ReviewResult, ReviewFinding, CoderResult, TestResult, PlanResult, DocsResult, Severity } from "../types/index.js";
 
 const SEVERITY_COLORS: Record<Severity, (text: string) => string> = {
   critical: chalk.red.bold,
@@ -134,6 +134,91 @@ export function formatTestResult(result: TestResult): string {
 
   const totalTests = result.testFiles.reduce((sum, f) => sum + f.testCount, 0);
   lines.push(chalk.bold("  Summary: ") + chalk.green(`${totalTests} tests`) + ` across ${result.testFiles.length} file(s)`);
+  lines.push(`  ${chalk.gray(result.summary)}`);
+  lines.push("");
+
+  return lines.join("\n");
+}
+
+const PRIORITY_COLORS: Record<string, (text: string) => string> = {
+  high: chalk.red,
+  medium: chalk.yellow,
+  low: chalk.blue,
+};
+
+const COMPLEXITY_ICONS: Record<string, string> = {
+  simple: "🟢",
+  moderate: "🟡",
+  complex: "🔴",
+};
+
+export function formatPlanResult(result: PlanResult): string {
+  const lines: string[] = [];
+
+  lines.push("");
+  lines.push(chalk.bold.underline("Implementation Plan"));
+  lines.push("");
+
+  if (result.goal) {
+    lines.push(chalk.bold("  Goal: ") + result.goal);
+    lines.push("");
+  }
+
+  if (result.tasks.length === 0) {
+    lines.push(chalk.green("  No tasks identified."));
+    lines.push("");
+    return lines.join("\n");
+  }
+
+  for (const task of result.tasks) {
+    const priorityColor = PRIORITY_COLORS[task.priority] ?? chalk.white;
+    const complexityIcon = COMPLEXITY_ICONS[task.estimatedComplexity] ?? "⚪";
+
+    lines.push(`  ${chalk.bold(`${task.id}.`)} ${chalk.bold(task.title)} ${complexityIcon} ${priorityColor(`[${task.priority}]`)}`);
+    lines.push(`     ${task.description}`);
+    if (task.files.length > 0) {
+      lines.push(`     ${chalk.gray("Files:")} ${task.files.join(", ")}`);
+    }
+    lines.push("");
+  }
+
+  if (result.risks.length > 0) {
+    lines.push(chalk.bold("  Risks:"));
+    for (const risk of result.risks) {
+      lines.push(`    ${chalk.yellow("⚠")} ${risk}`);
+    }
+    lines.push("");
+  }
+
+  lines.push(`  ${chalk.gray(result.summary)}`);
+  lines.push("");
+
+  return lines.join("\n");
+}
+
+export function formatDocsResult(result: DocsResult): string {
+  const lines: string[] = [];
+
+  lines.push("");
+  lines.push(chalk.bold.underline("Generated Documentation"));
+  lines.push("");
+
+  if (result.docs.length === 0) {
+    lines.push(chalk.yellow("  No documentation generated — files may already be well-documented."));
+    lines.push("");
+    return lines.join("\n");
+  }
+
+  for (const doc of result.docs) {
+    lines.push(chalk.bold(`  📝 ${doc.file}`) + chalk.gray(` [${doc.type}]`));
+    lines.push("");
+    for (const line of doc.content.split("\n")) {
+      lines.push(chalk.gray("    ") + line);
+    }
+    lines.push("");
+  }
+
+  lines.push(chalk.bold("  Summary: ") + `${result.docs.length} file(s) documented`);
   lines.push(`  ${chalk.gray(result.summary)}`);
   lines.push("");
 

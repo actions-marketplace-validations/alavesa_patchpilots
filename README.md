@@ -14,15 +14,16 @@ A team of AI agents that reviews and improves your code automatically.
 
 Built for solo developers and hobby projects — when you don't have a team to review your PRs, PatchPilots is your crew.
 
-## What it does
+## The Crew
 
-PatchPilots is a CLI tool that runs AI-powered agents on your codebase:
-
-- **Reviewer** — finds bugs, security issues, performance problems, and code smells
-- **Coder** — rewrites and fixes the issues the Reviewer found
-- **Orchestrator** — coordinates the whole pipeline
-
-More agents coming soon: Planner, Tester, and Docs.
+| Agent | Command | What it does |
+|-------|---------|--------------|
+| 🧠 Planner | `patchpilots plan` | Analyzes codebase and breaks down work into tasks |
+| 🔍 Reviewer | `patchpilots review` | Finds bugs, security issues, and code smells |
+| ✨ Coder | `patchpilots improve` | Rewrites and fixes code based on review findings |
+| 🧪 Tester | `patchpilots test` | Generates unit tests for your source files |
+| 📝 Docs | `patchpilots docs` | Generates JSDoc/TSDoc documentation |
+| 🎯 Orchestrator | (coordinates) | Manages the pipeline between agents |
 
 ## Quick start
 
@@ -36,11 +37,22 @@ export ANTHROPIC_API_KEY=your-key-here
 # Review code
 npx tsx bin/patchpilots.ts review ./src
 
+# Generate an implementation plan
+npx tsx bin/patchpilots.ts plan ./src --task "add authentication"
+
 # Review and improve code
 npx tsx bin/patchpilots.ts improve ./src
 
-# Apply fixes to disk
+# Generate unit tests
+npx tsx bin/patchpilots.ts test ./src
+
+# Generate documentation
+npx tsx bin/patchpilots.ts docs ./src
+
+# Apply any changes to disk
 npx tsx bin/patchpilots.ts improve ./src --write
+npx tsx bin/patchpilots.ts test ./src --write
+npx tsx bin/patchpilots.ts docs ./src --write
 ```
 
 ## CLI commands
@@ -66,6 +78,32 @@ All `review` options plus:
 | Option | Description |
 |--------|-------------|
 | `--write` | Write improved files to disk (default: dry-run) |
+| `--backup` | Create `.bak` files before overwriting |
+
+### `patchpilots test <path>`
+
+Generates unit tests for source files.
+
+| Option | Description |
+|--------|-------------|
+| `--write` | Write test files to disk |
+| `--framework <name>` | Test framework to use (default: `vitest`) |
+
+### `patchpilots plan <path>`
+
+Analyzes codebase and creates a structured implementation plan.
+
+| Option | Description |
+|--------|-------------|
+| `-t, --task <description>` | Specific task to plan for |
+
+### `patchpilots docs <path>`
+
+Generates documentation for source files.
+
+| Option | Description |
+|--------|-------------|
+| `--write` | Write documented files to disk |
 | `--backup` | Create `.bak` files before overwriting |
 
 ## Configuration

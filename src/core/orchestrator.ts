@@ -4,11 +4,13 @@ import { LLMClient } from "./llm-client.js";
 import { ReviewerAgent } from "../agents/reviewer.js";
 import { CoderAgent } from "../agents/coder.js";
 import { TesterAgent } from "../agents/tester.js";
+import { PlannerAgent } from "../agents/planner.js";
+import { DocsAgent } from "../agents/docs.js";
 import { collectFiles } from "../utils/files.js";
-import { formatReviewResult, formatCoderResult, formatTestResult, formatJson } from "../utils/formatter.js";
+import { formatReviewResult, formatCoderResult, formatTestResult, formatPlanResult, formatDocsResult, formatJson } from "../utils/formatter.js";
 import { log } from "../utils/logger.js";
 import type { PatchPilotsConfig } from "../types/index.js";
-import type { ReviewResult, CoderResult, TestResult } from "../types/review.js";
+import type { ReviewResult, CoderResult, TestResult, PlanResult, DocsResult } from "../types/review.js";
 
 export interface OrchestratorOptions {
   json?: boolean;
@@ -17,6 +19,7 @@ export interface OrchestratorOptions {
   backup?: boolean;
   severity?: string;
   framework?: string;
+  task?: string;
 }
 
 export class Orchestrator {
@@ -189,5 +192,88 @@ export class Orchestrator {
     }
 
     return testResult;
+  }
+
+  async plan(targetPath: string, options: OrchestratorOptions = {}): Promise<PlanResult> {
+    log.step("Collecting files...");
+    const files = await collectFiles(targetPath, this.config);
+
+    if (files.length === 0) {
+      log.warn("No matching files found.");
+      return { goal: "", tasks: [], risks: [], summary: "No files to analyze." };
+    }
+
+    log.info(`Found ${files.length} file(s) to analyze`);
+    if (options.verbose) {
+      for (const f of files) log.verbose(`  ${f.path}`);
+    }
+
+    log.step("🧠 Planner agent creating plan...");
+    const onToken = this.createStreamCallback(options.verbose ?? false);
+    const planner = new PlannerAgent(this.llmClient, options.task);
+    const result = await planner.execute({ files, config: this.config }, onToken);
+    const planResult = result.data as PlanResult;
+
+    if (options.verbose) {
+      console.error("");
+      log.verbose(`Tokens used: ${result.tokensUsed.input} in / ${result.tokensUsed.output} out`);
+    }
+
+    if (options.json) {
+      console.log(formatJson(planResult));
+    } else {
+      console.log(formatPlanResult(planResult));
+    }
+
+    return planResult;
+  }
+
+  async generateDocs(targetPath: string, options: OrchestratorOptions = {}): Promise<DocsResult> {
+    log.step("Collecting files...");
+    const files = await collectFiles(targetPath, this.config);
+
+    if (files.length === 0) {
+      log.warn("No matching files found.");
+      return { docs: [], summary: "No files to document." };
+    }
+
+    log.info(`Found ${files.length} file(s) to document`);
+    if (options.verbose) {
+      for (const f of files) log.verbose(`  ${f.path}`);
+    }
+
+    log.step("📝 Docs agent generating documentation...");
+    const onToken = this.createStreamCallback(options.verbose ?? false);
+    const docs = new DocsAgent(this.llmClient);
+    const result = await docs.execute({ files, config: this.config }, onToken);
+    const docsResult = result.data as DocsResult;
+
+    if (options.verbose) {
+      console.error("");
+      log.verbose(`Tokens used: ${result.tokensUsed.input} in / ${result.tokensUsed.output} out`);
+    }
+
+    if (options.json) {
+      console.log(formatJson(docsResult));
+    } else {
+      console.log(formatDocsResult(docsResult));
+    }
+
+    // Write documented files if requested
+    if (options.write && docsResult.docs.length > 0) {
+      for (const doc of docsResult.docs) {
+        const absPath = resolve(doc.file);
+        if (options.backup) {
+          copyFileSync(absPath, absPath + ".bak");
+          log.verbose(`Backed up ${doc.file} → ${doc.file}.bak`);
+        }
+        writeFileSync(absPath, doc.content, "utf-8");
+        log.success(`Updated ${doc.file}`);
+      }
+    } else if (!options.write && docsResult.docs.length > 0) {
+      log.info("Dry run — use --write to write documented files to disk.");
+    }
+
+    return docsResult;
   }
 }

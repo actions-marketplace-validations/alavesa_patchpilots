@@ -39,3 +39,30 @@ export interface TestResult {
   testFiles: TestFile[];
   summary: string;
 }
+
+export interface PlanTask {
+  id: number;
+  title: string;
+  description: string;
+  files: string[];
+  priority: "high" | "medium" | "low";
+  estimatedComplexity: "simple" | "moderate" | "complex";
+}
+
+export interface PlanResult {
+  goal: string;
+  tasks: PlanTask[];
+  risks: string[];
+  summary: string;
+}
+
+export interface DocEntry {
+  file: string;
+  content: string;
+  type: "jsdoc" | "readme" | "inline";
+}
+
+export interface DocsResult {
+  docs: DocEntry[];
+  summary: string;
+}
