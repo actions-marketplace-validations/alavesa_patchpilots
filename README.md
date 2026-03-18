@@ -55,7 +55,7 @@ Analyzes your code and reports findings grouped by file, color-coded by severity
 | `-c, --config <path>` | Path to config file |
 | `--severity <level>` | Minimum severity: `critical`, `warning`, `info` |
 | `--json` | Output raw JSON |
-| `--verbose` | Show token usage and timing |
+| `--verbose` | Show token usage and thinking progress |
 
 ### `patchpilots improve <path>`
 
@@ -74,8 +74,8 @@ Create a `.patchpilots.json` in your project root:
 
 ```json
 {
-  "model": "claude-sonnet-4-20250514",
-  "maxTokens": 4096,
+  "model": "claude-sonnet-4-6",
+  "maxTokens": 16000,
   "temperature": 0.3,
   "include": ["**/*.ts", "**/*.js"],
   "exclude": ["node_modules/**", "dist/**"],
@@ -90,27 +90,50 @@ Or set your API key via environment variable:
 export ANTHROPIC_API_KEY=your-key-here
 ```
 
+## Powered by Claude API
+
+PatchPilots uses three key features of the Claude API:
+
+### Structured outputs
+Every agent response is **guaranteed** to match its Zod schema via `zodOutputFormat`. No regex JSON extraction, no prayer-based parsing — the API enforces the schema.
+
+### Adaptive thinking
+Agents use Claude's adaptive thinking mode for deeper reasoning. The Reviewer agent thinks through code logic before flagging issues, catching bugs that a surface-level scan would miss.
+
+### Streaming
+Responses are streamed in real-time. No hanging on long requests, no timeouts. Use `--verbose` to see thinking progress as it happens.
+
 ## Architecture
 
-PatchPilots uses a clean agent abstraction. Every agent extends `BaseAgent` and implements three methods:
+PatchPilots uses a clean agent abstraction. Every agent extends `BaseAgent<T>` and implements three methods:
 
 ```typescript
-class MyAgent extends BaseAgent {
+class MyAgent extends BaseAgent<MyOutputType> {
   getSystemPrompt()          // What the agent's role is
   buildUserMessage(context)  // How to format the input
-  parseResponse(raw)         // How to parse the LLM output
+  getOutputSchema()          // Zod schema — guarantees output shape
 }
 ```
 
-Adding a new agent is one file + three methods. The orchestrator handles coordination, error handling, and output.
+Adding a new agent is one file + three methods. The orchestrator handles coordination, streaming, error handling, and output formatting.
+
+### Error handling
+
+The LLM client uses typed Anthropic SDK exceptions:
+- `RateLimitError` — automatic retry with backoff
+- `AuthenticationError` — clear message about API key
+- `APIError` — surfaced with status code and details
 
 ## Tech stack
 
 - TypeScript + Node.js
-- Claude API (`@anthropic-ai/sdk`)
+- Claude API (`@anthropic-ai/sdk` v0.79.0)
+- Structured outputs (`zodOutputFormat`) — guaranteed schema compliance
+- Adaptive thinking — deeper code analysis
+- Streaming — real-time response delivery
 - Commander (CLI)
 - Chalk (terminal formatting)
-- Zod (LLM output validation)
+- Zod (schema definition + validation)
 
 ## Status
 
