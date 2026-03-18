@@ -26,6 +26,19 @@ export class Orchestrator {
     this.llmClient = new LLMClient(config.apiKey, config.model);
   }
 
+  private createStreamCallback(verbose: boolean) {
+    let thinkingStarted = false;
+    return (token: string) => {
+      if (verbose) {
+        if (!thinkingStarted) {
+          log.verbose("Agent is thinking...");
+          thinkingStarted = true;
+        }
+        process.stderr.write(".");
+      }
+    };
+  }
+
   async review(targetPath: string, options: OrchestratorOptions = {}): Promise<ReviewResult> {
     log.step("Collecting files...");
     const files = await collectFiles(targetPath, this.config);
@@ -41,11 +54,13 @@ export class Orchestrator {
     }
 
     log.step("🔍 Reviewer agent analyzing code...");
+    const onToken = this.createStreamCallback(options.verbose ?? false);
     const reviewer = new ReviewerAgent(this.llmClient);
-    const result = await reviewer.execute({ files, config: this.config });
+    const result = await reviewer.execute({ files, config: this.config }, onToken);
     const reviewResult = result.data as ReviewResult;
 
     if (options.verbose) {
+      console.error(""); // newline after dots
       log.verbose(`Tokens used: ${result.tokensUsed.input} in / ${result.tokensUsed.output} out`);
     }
 
@@ -81,22 +96,27 @@ export class Orchestrator {
 
     // Step 2: Improve
     log.step("✨ Coder agent improving code...");
+    const onToken = this.createStreamCallback(options.verbose ?? false);
     const files = await collectFiles(targetPath, this.config);
     const coder = new CoderAgent(this.llmClient);
-    const coderResultRaw = await coder.execute({
-      files,
-      config: this.config,
-      previousResults: {
-        agentName: "Reviewer",
-        success: true,
-        data: reviewResult,
-        rawResponse: "",
-        tokensUsed: { input: 0, output: 0 },
+    const coderResultRaw = await coder.execute(
+      {
+        files,
+        config: this.config,
+        previousResults: {
+          agentName: "Reviewer",
+          success: true,
+          data: reviewResult,
+          rawResponse: "",
+          tokensUsed: { input: 0, output: 0 },
+        },
       },
-    });
+      onToken,
+    );
     const coderResult = coderResultRaw.data as CoderResult;
 
     if (options.verbose) {
+      console.error(""); // newline after dots
       log.verbose(`Tokens used: ${coderResultRaw.tokensUsed.input} in / ${coderResultRaw.tokensUsed.output} out`);
     }
 

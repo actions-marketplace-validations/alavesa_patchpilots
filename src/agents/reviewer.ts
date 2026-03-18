@@ -18,9 +18,13 @@ const reviewResultSchema = z.object({
   summary: z.string(),
 });
 
-export class ReviewerAgent extends BaseAgent {
+export class ReviewerAgent extends BaseAgent<ReviewResult> {
   readonly name = "Reviewer";
   readonly description = "Finds bugs, code smells, security issues, and performance problems";
+
+  protected getOutputSchema() {
+    return reviewResultSchema;
+  }
 
   protected getSystemPrompt(): string {
     return `You are a senior code reviewer with expertise in software security, performance, and best practices.
@@ -33,22 +37,6 @@ Be specific:
 - Reference exact file names and line numbers when possible
 - Explain WHY something is a problem, not just WHAT
 - Provide actionable suggestions
-
-Respond with ONLY a JSON object (no markdown, no explanation outside the JSON):
-{
-  "findings": [
-    {
-      "file": "path/to/file.ts",
-      "line": 42,
-      "severity": "warning",
-      "category": "code-smell",
-      "title": "Short title of the issue",
-      "description": "Detailed explanation of the problem",
-      "suggestion": "How to fix it"
-    }
-  ],
-  "summary": "Brief overall assessment"
-}
 
 If the code looks good, return an empty findings array with a positive summary.`;
   }
@@ -64,10 +52,5 @@ If the code looks good, return an empty findings array with a positive summary.`
     }
 
     return parts.join("\n");
-  }
-
-  protected parseResponse(raw: string): ReviewResult {
-    const jsonStr = this.extractJson(raw);
-    return reviewResultSchema.parse(JSON.parse(jsonStr));
   }
 }

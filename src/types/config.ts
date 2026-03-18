@@ -10,8 +10,8 @@ export interface PatchPilotsConfig {
 }
 
 export const DEFAULT_CONFIG: Omit<PatchPilotsConfig, "apiKey"> = {
-  model: "claude-sonnet-4-20250514",
-  maxTokens: 4096,
+  model: "claude-sonnet-4-6",
+  maxTokens: 16000,
   temperature: 0.3,
   include: ["**/*.ts", "**/*.js", "**/*.tsx", "**/*.jsx", "**/*.py", "**/*.go", "**/*.rs", "**/*.java"],
   exclude: ["node_modules/**", "dist/**", ".git/**", "*.min.js", "*.bundle.js"],

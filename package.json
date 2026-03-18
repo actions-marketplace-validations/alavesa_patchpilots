@@ -11,10 +11,16 @@
     "build": "tsc",
     "test": "vitest run"
   },
-  "keywords": ["ai", "code-review", "agents", "claude", "cli"],
+  "keywords": [
+    "ai",
+    "code-review",
+    "agents",
+    "claude",
+    "cli"
+  ],
   "license": "MIT",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.39.0",
+    "@anthropic-ai/sdk": "^0.79.0",
     "chalk": "^5.4.0",
     "commander": "^13.0.0",
     "glob": "^11.0.0",
