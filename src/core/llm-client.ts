@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
 import { log } from "../utils/logger.js";
 
 export interface LLMResponse<T = string> {
@@ -23,10 +23,6 @@ export class LLMClient {
     this.defaultModel = defaultModel;
   }
 
-  /**
-   * Structured output with streaming — guarantees response matches the Zod schema.
-   * Uses adaptive thinking for deeper reasoning.
-   */
   async chatStructured<T>(
     systemPrompt: string,
     userMessage: string,
@@ -35,22 +31,25 @@ export class LLMClient {
     onToken?: (text: string) => void,
   ): Promise<LLMResponse<T>> {
     const model = options.model ?? this.defaultModel;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const jsonSchema = zodToJsonSchema(schema as any);
 
     try {
-      // Use streaming + structured outputs
       const stream = this.client.messages.stream({
         model,
         max_tokens: options.maxTokens,
-        temperature: options.temperature,
+        temperature: 1,
         thinking: { type: "adaptive" },
         system: systemPrompt,
         messages: [{ role: "user", content: userMessage }],
         output_config: {
-          format: zodOutputFormat(schema),
+          format: {
+            type: "json_schema" as const,
+            schema: jsonSchema as Record<string, unknown>,
+          },
         },
       });
 
-      // Stream thinking/text tokens for live feedback
       for await (const event of stream) {
         if (event.type === "content_block_delta") {
           if (event.delta.type === "thinking_delta" && onToken) {
@@ -68,7 +67,6 @@ export class LLMClient {
         .map((block) => block.text)
         .join("\n");
 
-      // Parse the structured output
       const parsed = schema.parse(JSON.parse(text));
 
       return {
