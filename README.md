@@ -10,7 +10,7 @@ A team of AI agents that reviews and improves your code automatically.
       Planner Reviewer Coder  Tester  Docs  Orchestrator
 ```
 
-**One dev. Six AI agents. Zero excuses.**
+**One designer. Six AI agents. Zero excuses.**
 
 Built for solo developers and hobby projects — when you don't have a team to review your PRs, PatchPilots is your crew.
 
