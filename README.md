@@ -222,6 +222,7 @@ This is an MVP — actively being built in public. Follow along for updates.
 - [ ] **`patchpilots audit`** — full pipeline: plan → review → improve → test → docs in one command
 - [ ] **Smart model routing** — Haiku for Docs/Tester, Sonnet for Reviewer/Coder
 - [ ] **HTML/CSS support** — review static sites and stylesheets
+- [ ] **Security agent** — dedicated OWASP Top 10, secrets detection, input validation, and auth pattern analysis
 - [ ] **Designer agent** — generate CSS, design tokens, and component markup
 
 ## License
