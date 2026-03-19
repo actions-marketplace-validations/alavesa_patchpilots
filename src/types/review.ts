@@ -16,11 +16,15 @@ export interface ReviewResult {
   summary: string;
 }
 
+export interface FilePatch {
+  find: string;
+  replace: string;
+  description: string;
+}
+
 export interface ImprovedFile {
   path: string;
-  original: string;
-  improved: string;
-  changes: string[];
+  patches: FilePatch[];
 }
 
 export interface CoderResult {

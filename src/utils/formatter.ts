@@ -72,37 +72,38 @@ export function formatCoderResult(result: CoderResult): string {
   lines.push(chalk.bold.underline("Improvements"));
   lines.push("");
 
-  for (const file of result.improvedFiles) {
-    lines.push(chalk.bold(`  📝 ${file.path}`));
-    for (const change of file.changes) {
-      lines.push(`    ${chalk.green("→")} ${change}`);
-    }
+  if (result.improvedFiles.length === 0) {
+    lines.push(chalk.green("  No changes needed."));
     lines.push("");
-
-    // Simple diff display
-    const origLines = file.original.split("\n");
-    const newLines = file.improved.split("\n");
-
-    lines.push(chalk.gray("    --- original"));
-    lines.push(chalk.gray("    +++ improved"));
-
-    // Show changed lines (simplified)
-    const maxLines = Math.max(origLines.length, newLines.length);
-    let diffShown = 0;
-    for (let i = 0; i < maxLines && diffShown < 30; i++) {
-      if (origLines[i] !== newLines[i]) {
-        if (origLines[i] !== undefined) {
-          lines.push(chalk.red(`    - ${origLines[i]}`));
-        }
-        if (newLines[i] !== undefined) {
-          lines.push(chalk.green(`    + ${newLines[i]}`));
-        }
-        diffShown++;
-      }
-    }
-    lines.push("");
+    return lines.join("\n");
   }
 
+  let totalPatches = 0;
+  for (const file of result.improvedFiles) {
+    lines.push(chalk.bold(`  📝 ${file.path}`) + chalk.gray(` (${file.patches.length} patches)`));
+    lines.push("");
+
+    for (const patch of file.patches) {
+      lines.push(`    ${chalk.green("→")} ${patch.description}`);
+      // Show compact diff for the patch
+      for (const line of patch.find.split("\n").slice(0, 5)) {
+        lines.push(chalk.red(`      - ${line}`));
+      }
+      if (patch.find.split("\n").length > 5) {
+        lines.push(chalk.gray(`      ... (${patch.find.split("\n").length - 5} more lines)`));
+      }
+      for (const line of patch.replace.split("\n").slice(0, 5)) {
+        lines.push(chalk.green(`      + ${line}`));
+      }
+      if (patch.replace.split("\n").length > 5) {
+        lines.push(chalk.gray(`      ... (${patch.replace.split("\n").length - 5} more lines)`));
+      }
+      lines.push("");
+      totalPatches++;
+    }
+  }
+
+  lines.push(chalk.bold("  Summary: ") + chalk.green(`${totalPatches} patches`) + ` across ${result.improvedFiles.length} file(s)`);
   lines.push(`  ${chalk.gray(result.summary)}`);
   lines.push("");
 

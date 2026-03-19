@@ -1,4 +1,4 @@
-import { writeFileSync, copyFileSync } from "node:fs";
+import { readFileSync, writeFileSync, copyFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { LLMClient } from "./llm-client.js";
 import { ReviewerAgent } from "../agents/reviewer.js";
@@ -143,7 +143,7 @@ export class Orchestrator {
       console.log(formatCoderResult(coderResult));
     }
 
-    // Write files if requested
+    // Apply patches if requested
     if (options.write && coderResult.improvedFiles.length > 0) {
       for (const file of coderResult.improvedFiles) {
         const absPath = resolve(file.path);
@@ -151,8 +151,20 @@ export class Orchestrator {
           copyFileSync(absPath, absPath + ".bak");
           log.verbose(`Backed up ${file.path} → ${file.path}.bak`);
         }
-        writeFileSync(absPath, file.improved, "utf-8");
-        log.success(`Updated ${file.path}`);
+        let content = readFileSync(absPath, "utf-8");
+        let applied = 0;
+        for (const patch of file.patches) {
+          if (content.includes(patch.find)) {
+            content = content.replace(patch.find, patch.replace);
+            applied++;
+          } else {
+            log.warn(`Patch skipped (no match): ${patch.description}`);
+          }
+        }
+        if (applied > 0) {
+          writeFileSync(absPath, content, "utf-8");
+          log.success(`Updated ${file.path} (${applied}/${file.patches.length} patches applied)`);
+        }
       }
     } else if (!options.write && coderResult.improvedFiles.length > 0) {
       log.info("Dry run — use --write to apply changes to disk.");
