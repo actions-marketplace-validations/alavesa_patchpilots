@@ -9,6 +9,7 @@ import { DocsAgent } from "../agents/docs.js";
 import { collectFiles } from "../utils/files.js";
 import { formatReviewResult, formatCoderResult, formatTestResult, formatPlanResult, formatDocsResult, formatJson } from "../utils/formatter.js";
 import { log } from "../utils/logger.js";
+import { CostTracker } from "../utils/cost.js";
 import type { PatchPilotsConfig } from "../types/index.js";
 import type { ReviewResult, CoderResult, TestResult, PlanResult, DocsResult } from "../types/review.js";
 
@@ -25,10 +26,18 @@ export interface OrchestratorOptions {
 export class Orchestrator {
   private llmClient: LLMClient;
   private config: PatchPilotsConfig;
+  private costTracker: CostTracker;
 
   constructor(config: PatchPilotsConfig) {
     this.config = config;
     this.llmClient = new LLMClient(config.apiKey, config.model);
+    this.costTracker = new CostTracker(config.model);
+  }
+
+  private printCost(json?: boolean): void {
+    if (!json) {
+      console.log(this.costTracker.formatSummary());
+    }
   }
 
   private createStreamCallback(verbose: boolean) {
@@ -63,6 +72,7 @@ export class Orchestrator {
     const reviewer = new ReviewerAgent(this.llmClient);
     const result = await reviewer.execute({ files, config: this.config }, onToken);
     const reviewResult = result.data as ReviewResult;
+    this.costTracker.track("Reviewer", result.tokensUsed);
 
     if (options.verbose) {
       console.error(""); // newline after dots
@@ -84,6 +94,7 @@ export class Orchestrator {
       console.log(formatReviewResult(reviewResult));
     }
 
+    this.printCost(options.json);
     return reviewResult;
   }
 
@@ -119,6 +130,7 @@ export class Orchestrator {
       onToken,
     );
     const coderResult = coderResultRaw.data as CoderResult;
+    this.costTracker.track("Coder", coderResultRaw.tokensUsed);
 
     if (options.verbose) {
       console.error(""); // newline after dots
@@ -146,6 +158,7 @@ export class Orchestrator {
       log.info("Dry run — use --write to apply changes to disk.");
     }
 
+    this.printCost(options.json);
     return { review: reviewResult, coder: coderResult };
   }
 
@@ -168,6 +181,7 @@ export class Orchestrator {
     const tester = new TesterAgent(this.llmClient, options.framework ?? "vitest");
     const result = await tester.execute({ files, config: this.config }, onToken);
     const testResult = result.data as TestResult;
+    this.costTracker.track("Tester", result.tokensUsed);
 
     if (options.verbose) {
       console.error("");
@@ -191,6 +205,7 @@ export class Orchestrator {
       log.info("Dry run — use --write to write test files to disk.");
     }
 
+    this.printCost(options.json);
     return testResult;
   }
 
@@ -213,6 +228,7 @@ export class Orchestrator {
     const planner = new PlannerAgent(this.llmClient, options.task);
     const result = await planner.execute({ files, config: this.config }, onToken);
     const planResult = result.data as PlanResult;
+    this.costTracker.track("Planner", result.tokensUsed);
 
     if (options.verbose) {
       console.error("");
@@ -225,6 +241,7 @@ export class Orchestrator {
       console.log(formatPlanResult(planResult));
     }
 
+    this.printCost(options.json);
     return planResult;
   }
 
@@ -247,6 +264,7 @@ export class Orchestrator {
     const docs = new DocsAgent(this.llmClient);
     const result = await docs.execute({ files, config: this.config }, onToken);
     const docsResult = result.data as DocsResult;
+    this.costTracker.track("Docs", result.tokensUsed);
 
     if (options.verbose) {
       console.error("");
@@ -274,6 +292,7 @@ export class Orchestrator {
       log.info("Dry run — use --write to write documented files to disk.");
     }
 
+    this.printCost(options.json);
     return docsResult;
   }
 }

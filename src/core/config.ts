@@ -1,5 +1,6 @@
 import { readFileSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
+import { homedir } from "node:os";
 import { z } from "zod";
 import { DEFAULT_CONFIG, type PatchPilotsConfig } from "../types/index.js";
 
@@ -26,6 +27,16 @@ function findConfigFile(startDir: string): string | null {
   return null;
 }
 
+function loadGlobalConfig(): Partial<PatchPilotsConfig> {
+  const globalPath = resolve(homedir(), ".patchpilots.json");
+  if (!existsSync(globalPath)) return {};
+  try {
+    return configSchema.parse(JSON.parse(readFileSync(globalPath, "utf-8")));
+  } catch {
+    return {};
+  }
+}
+
 function loadFileConfig(startDir: string): Partial<PatchPilotsConfig> {
   const configPath = findConfigFile(startDir);
   if (!configPath) return {};
@@ -44,12 +55,14 @@ export interface CLIOptions {
 }
 
 export function loadConfig(targetPath: string, cliOptions: CLIOptions = {}): PatchPilotsConfig {
+  const globalConfig = loadGlobalConfig();
   const fileConfig = cliOptions.config
     ? configSchema.parse(JSON.parse(readFileSync(resolve(cliOptions.config), "utf-8")))
     : loadFileConfig(targetPath);
 
   const apiKey =
     fileConfig.apiKey ??
+    globalConfig.apiKey ??
     process.env.ANTHROPIC_API_KEY ??
     "";
 
@@ -61,6 +74,7 @@ export function loadConfig(targetPath: string, cliOptions: CLIOptions = {}): Pat
 
   return {
     ...DEFAULT_CONFIG,
+    ...globalConfig,
     ...fileConfig,
     ...(cliOptions.model ? { model: cliOptions.model } : {}),
     apiKey,

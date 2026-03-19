@@ -40,7 +40,7 @@ export class LLMClient {
         max_tokens: options.maxTokens,
         temperature: 1,
         thinking: { type: "adaptive" },
-        system: systemPrompt,
+        system: [{ type: "text" as const, text: systemPrompt, cache_control: { type: "ephemeral" as const } }],
         messages: [{ role: "user", content: userMessage }],
         output_config: {
           format: {

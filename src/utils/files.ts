@@ -21,6 +21,11 @@ const LANGUAGE_MAP: Record<string, string> = {
   ".cs": "csharp",
   ".swift": "swift",
   ".kt": "kotlin",
+  ".html": "html",
+  ".css": "css",
+  ".scss": "scss",
+  ".vue": "vue",
+  ".svelte": "svelte",
 };
 
 function inferLanguage(filePath: string): string {

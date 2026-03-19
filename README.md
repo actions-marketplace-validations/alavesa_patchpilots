@@ -134,11 +134,19 @@ Create a `.patchpilots.json` in your project root:
 }
 ```
 
-Or set your API key via environment variable:
+Or set your API key **once globally** so it works for every project:
+
+```bash
+echo '{"apiKey": "sk-ant-..."}' > ~/.patchpilots.json
+```
+
+Or per-project via `.patchpilots.json` in your project root, or via environment variable:
 
 ```bash
 export ANTHROPIC_API_KEY=your-key-here
 ```
+
+Config resolution order: CLI flags > project `.patchpilots.json` > global `~/.patchpilots.json` > `ANTHROPIC_API_KEY` env var.
 
 ## Powered by Claude API
 
@@ -152,6 +160,12 @@ Agents use Claude's adaptive thinking mode for deeper reasoning. The Reviewer ag
 
 ### Streaming
 Responses are streamed in real-time. No hanging on long requests, no timeouts. Use `--verbose` to see thinking progress as it happens.
+
+### Prompt caching
+System prompts are cached via Claude's `cache_control` — repeat runs against the same project cost ~90% less on the cached portion.
+
+### Cost tracking
+Every run shows a cost summary with per-agent token usage and estimated USD cost.
 
 ## Architecture
 
@@ -188,6 +202,27 @@ The LLM client uses typed Anthropic SDK exceptions:
 ## Status
 
 This is an MVP — actively being built in public. Follow along for updates.
+
+## Roadmap
+
+### Done
+- [x] 6 AI agents: Planner, Reviewer, Coder, Tester, Docs, Orchestrator
+- [x] Structured outputs with Zod schemas — guaranteed valid responses
+- [x] Adaptive thinking for deeper code analysis
+- [x] Streaming — real-time response delivery
+- [x] Prompt caching — ~90% cost savings on repeat runs
+- [x] Cost tracking — per-agent token usage and USD estimate after every run
+- [x] Global config (`~/.patchpilots.json`) — set API key once for all projects
+
+### Next up
+- [ ] **Diff-based Coder output** — return patches instead of full files (fixes token limit on large files)
+- [ ] **npm publish** — `npx patchpilots review ./src` from anywhere
+- [ ] **Parallel file review** — review files in batches instead of one giant prompt
+- [ ] **GitHub Action** — auto-review PRs and post findings as comments
+- [ ] **`patchpilots audit`** — full pipeline: plan → review → improve → test → docs in one command
+- [ ] **Smart model routing** — Haiku for Docs/Tester, Sonnet for Reviewer/Coder
+- [ ] **HTML/CSS support** — review static sites and stylesheets
+- [ ] **Designer agent** — generate CSS, design tokens, and component markup
 
 ## License
 
