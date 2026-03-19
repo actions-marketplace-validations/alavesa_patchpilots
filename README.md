@@ -29,13 +29,25 @@ A team of AI agents that reviews and improves your code automatically.
 
 Built for solo developers and hobby projects — when you don't have a team to review your PRs, PatchPilots is your crew.
 
+## Install
+
+```bash
+npx patchpilots review ./src
+```
+
+Or install globally:
+
+```bash
+npm install -g patchpilots
+```
+
 ## The Crew
 
 | Agent | Command | What it does |
 |-------|---------|--------------|
 | 🧠 Planner | `patchpilots plan` | Analyzes codebase and breaks down work into tasks |
 | 🔍 Reviewer | `patchpilots review` | Finds bugs, security issues, and code smells |
-| ✨ Coder | `patchpilots improve` | Rewrites and fixes code based on review findings |
+| ✨ Coder | `patchpilots improve` | Fixes code based on review findings (diff-based patches) |
 | 🧪 Tester | `patchpilots test` | Generates unit tests for your source files |
 | 📝 Docs | `patchpilots docs` | Generates JSDoc/TSDoc documentation |
 | 🎯 Orchestrator | (coordinates) | Manages the pipeline between agents |
@@ -43,31 +55,27 @@ Built for solo developers and hobby projects — when you don't have a team to r
 ## Quick start
 
 ```bash
-# Install dependencies
-npm install
+# Set your API key (get one at https://console.anthropic.com/settings/keys)
+# Option 1: Global config (set once, works everywhere)
+echo '{"apiKey": "sk-ant-..."}' > ~/.patchpilots.json
 
-# Set your API key
+# Option 2: Environment variable
 export ANTHROPIC_API_KEY=your-key-here
 
 # Review code
-npx tsx bin/patchpilots.ts review ./src
+npx patchpilots review ./src
 
 # Generate an implementation plan
-npx tsx bin/patchpilots.ts plan ./src --task "add authentication"
+npx patchpilots plan ./src --task "add authentication"
 
-# Review and improve code
-npx tsx bin/patchpilots.ts improve ./src
+# Review and fix code
+npx patchpilots improve ./src --write
 
 # Generate unit tests
-npx tsx bin/patchpilots.ts test ./src
+npx patchpilots test ./src --write
 
 # Generate documentation
-npx tsx bin/patchpilots.ts docs ./src
-
-# Apply any changes to disk
-npx tsx bin/patchpilots.ts improve ./src --write
-npx tsx bin/patchpilots.ts test ./src --write
-npx tsx bin/patchpilots.ts docs ./src --write
+npx patchpilots docs ./src --write
 ```
 
 ## CLI commands
@@ -86,14 +94,14 @@ Analyzes your code and reports findings grouped by file, color-coded by severity
 
 ### `patchpilots improve <path>`
 
-Reviews code and then generates improved versions with fixes applied.
+Reviews code and generates search-and-replace patches to fix issues.
 
 All `review` options plus:
 
 | Option | Description |
 |--------|-------------|
-| `--write` | Write improved files to disk (default: dry-run) |
-| `--backup` | Create `.bak` files before overwriting |
+| `--write` | Apply patches to disk (default: dry-run) |
+| `--backup` | Create `.bak` files before patching |
 
 ### `patchpilots test <path>`
 
@@ -123,40 +131,35 @@ Generates documentation for source files.
 
 ## Configuration
 
-Create a `.patchpilots.json` in your project root:
+Set your API key **once globally** so it works for every project:
+
+```bash
+echo '{"apiKey": "sk-ant-..."}' > ~/.patchpilots.json
+```
+
+Or create a per-project `.patchpilots.json`:
 
 ```json
 {
   "model": "claude-sonnet-4-6",
-  "maxTokens": 16000,
-  "temperature": 0.3,
-  "include": ["**/*.ts", "**/*.js"],
+  "maxTokens": 64000,
+  "include": ["**/*.ts", "**/*.js", "**/*.tsx", "**/*.jsx", "**/*.html", "**/*.css"],
   "exclude": ["node_modules/**", "dist/**"],
   "maxFileSize": 100000,
   "maxFiles": 20
 }
 ```
 
-Or set your API key **once globally** so it works for every project:
-
-```bash
-echo '{"apiKey": "sk-ant-..."}' > ~/.patchpilots.json
-```
-
-Or per-project via `.patchpilots.json` in your project root, or via environment variable:
-
-```bash
-export ANTHROPIC_API_KEY=your-key-here
-```
-
 Config resolution order: CLI flags > project `.patchpilots.json` > global `~/.patchpilots.json` > `ANTHROPIC_API_KEY` env var.
+
+### Supported file types
+
+TypeScript, JavaScript, JSX/TSX, Python, Go, Rust, Java, Ruby, PHP, C/C++, C#, Swift, Kotlin, HTML, CSS, SCSS, Vue, Svelte.
 
 ## Powered by Claude API
 
-PatchPilots uses three key features of the Claude API:
-
 ### Structured outputs
-Every agent response is **guaranteed** to match its Zod schema via `zodOutputFormat`. No regex JSON extraction, no prayer-based parsing — the API enforces the schema.
+Every agent response is **guaranteed** to match its Zod schema via JSON schema enforcement. No regex JSON extraction, no prayer-based parsing — the API enforces the schema.
 
 ### Adaptive thinking
 Agents use Claude's adaptive thinking mode for deeper reasoning. The Reviewer agent thinks through code logic before flagging issues, catching bugs that a surface-level scan would miss.
@@ -170,9 +173,12 @@ System prompts are cached via Claude's `cache_control` — repeat runs against t
 ### Cost tracking
 Every run shows a cost summary with per-agent token usage and estimated USD cost.
 
+### Diff-based patches
+The Coder agent returns search-and-replace patches instead of full file content, dramatically reducing token usage and enabling fixes on large files.
+
 ## Architecture
 
-PatchPilots uses a clean agent abstraction. Every agent extends `BaseAgent<T>` and implements three methods:
+Every agent extends `BaseAgent<T>` and implements three methods:
 
 ```typescript
 class MyAgent extends BaseAgent<MyOutputType> {
@@ -194,38 +200,34 @@ The LLM client uses typed Anthropic SDK exceptions:
 ## Tech stack
 
 - TypeScript + Node.js
-- Claude API (`@anthropic-ai/sdk` v0.79.0)
-- Structured outputs (`zodOutputFormat`) — guaranteed schema compliance
+- Claude API (`@anthropic-ai/sdk`)
+- Structured outputs (JSON schema) — guaranteed schema compliance
 - Adaptive thinking — deeper code analysis
 - Streaming — real-time response delivery
-- Commander (CLI)
-- Chalk (terminal formatting)
-- Zod (schema definition + validation)
-
-## Status
-
-This is an MVP — actively being built in public. Follow along for updates.
+- Diff-based patches — efficient code fixes
+- Prompt caching — cost optimization
+- Commander (CLI) + Chalk (terminal formatting) + Zod (validation)
 
 ## Roadmap
 
 ### Done
 - [x] 6 AI agents: Planner, Reviewer, Coder, Tester, Docs, Orchestrator
-- [x] Structured outputs with Zod schemas — guaranteed valid responses
+- [x] Structured outputs with Zod schemas
 - [x] Adaptive thinking for deeper code analysis
-- [x] Streaming — real-time response delivery
-- [x] Prompt caching — ~90% cost savings on repeat runs
-- [x] Cost tracking — per-agent token usage and USD estimate after every run
-- [x] Global config (`~/.patchpilots.json`) — set API key once for all projects
+- [x] Streaming with real-time progress
+- [x] Prompt caching (~90% cost savings on repeat runs)
+- [x] Cost tracking (per-agent token usage and USD estimate)
+- [x] Global config (`~/.patchpilots.json`)
+- [x] Diff-based Coder output (patches instead of full files)
+- [x] Published to npm (`npx patchpilots`)
+- [x] HTML, CSS, SCSS, Vue, Svelte file support
 
 ### Next up
-- [x] **Diff-based Coder output** — return patches instead of full files (fixes token limit on large files)
-- [x] **npm publish** — `npx patchpilots review ./src` from anywhere
+- [ ] **Security agent** — OWASP Top 10, secrets detection, input validation, auth pattern analysis
 - [ ] **Parallel file review** — review files in batches instead of one giant prompt
 - [ ] **GitHub Action** — auto-review PRs and post findings as comments
 - [ ] **`patchpilots audit`** — full pipeline: plan → review → improve → test → docs in one command
 - [ ] **Smart model routing** — Haiku for Docs/Tester, Sonnet for Reviewer/Coder
-- [ ] **HTML/CSS support** — review static sites and stylesheets
-- [ ] **Security agent** — dedicated OWASP Top 10, secrets detection, input validation, and auth pattern analysis
 - [ ] **Designer agent** — generate CSS, design tokens, and component markup
 
 ## License
