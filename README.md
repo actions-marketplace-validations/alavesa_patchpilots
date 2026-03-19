@@ -1,5 +1,8 @@
 # PatchPilots
 
+[![npm version](https://img.shields.io/npm/v/patchpilots)](https://www.npmjs.com/package/patchpilots)
+[![license](https://img.shields.io/npm/l/patchpilots)](https://github.com/alavesa/patchpilots/blob/main/LICENSE)
+
 A team of AI agents that reviews and improves your code automatically.
 
 ```
