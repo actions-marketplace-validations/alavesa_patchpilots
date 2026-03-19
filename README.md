@@ -215,7 +215,7 @@ This is an MVP — actively being built in public. Follow along for updates.
 - [x] Global config (`~/.patchpilots.json`) — set API key once for all projects
 
 ### Next up
-- [ ] **Diff-based Coder output** — return patches instead of full files (fixes token limit on large files)
+- [x] **Diff-based Coder output** — return patches instead of full files (fixes token limit on large files)
 - [ ] **npm publish** — `npx patchpilots review ./src` from anywhere
 - [ ] **Parallel file review** — review files in batches instead of one giant prompt
 - [ ] **GitHub Action** — auto-review PRs and post findings as comments
