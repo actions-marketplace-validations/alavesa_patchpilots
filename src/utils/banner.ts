@@ -27,11 +27,11 @@ const FRAMES = [
 
   // Frame 4: Full crew assembled with roles
   `
-        ${chalk.yellow("○")}      ${chalk.magenta("○")}      ${chalk.green("○")}      ${chalk.blue("○")}      ${chalk.red("○")}      ${chalk.cyan("○")}
-       ${chalk.yellow("/|\\")}    ${chalk.magenta("/|\\")}    ${chalk.green("/|\\")}    ${chalk.blue("/|\\")}    ${chalk.red("/|\\")}    ${chalk.cyan("/|\\")}
-       ${chalk.yellow("/ \\")}    ${chalk.magenta("/ \\")}    ${chalk.green("/ \\")}    ${chalk.blue("/ \\")}    ${chalk.red("/ \\")}    ${chalk.cyan("/ \\")}
-       ${chalk.yellow("🧠")}      ${chalk.magenta("🔍")}      ${chalk.green("✨")}      ${chalk.blue("🧪")}      ${chalk.red("📝")}      ${chalk.cyan("🎯")}
-    ${chalk.yellow("Planner")} ${chalk.magenta("Reviewer")}  ${chalk.green("Coder")}   ${chalk.blue("Tester")}   ${chalk.red("Docs")}  ${chalk.cyan("Orchestrator")}
+     ${chalk.yellow("○")}      ${chalk.magenta("○")}      ${chalk.green("○")}      ${chalk.blue("○")}      ${chalk.red("○")}      ${chalk.white("○")}      ${chalk.cyan("○")}
+    ${chalk.yellow("/|\\")}    ${chalk.magenta("/|\\")}    ${chalk.green("/|\\")}    ${chalk.blue("/|\\")}    ${chalk.red("/|\\")}    ${chalk.white("/|\\")}    ${chalk.cyan("/|\\")}
+    ${chalk.yellow("/ \\")}    ${chalk.magenta("/ \\")}    ${chalk.green("/ \\")}    ${chalk.blue("/ \\")}    ${chalk.red("/ \\")}    ${chalk.white("/ \\")}    ${chalk.cyan("/ \\")}
+     ${chalk.yellow("🧠")}      ${chalk.magenta("🔍")}      ${chalk.green("✨")}      ${chalk.blue("🧪")}      ${chalk.red("📝")}      ${chalk.white("🔒")}      ${chalk.cyan("🎯")}
+  ${chalk.yellow("Planner")} ${chalk.magenta("Reviewer")}  ${chalk.green("Coder")}   ${chalk.blue("Tester")}   ${chalk.red("Docs")}  ${chalk.white("Security")} ${chalk.cyan("Orchestrator")}
   `,
 
   // Frame 5: Final banner
@@ -43,11 +43,11 @@ ${chalk.bold.cyan(`
  / ____/ /_/ / /_/ /__/ / / / ____/ / / /_/ / /_(__  )
 /_/    \\__,_/\\__/\\___/_/ /_/_/   /_/_/\\____/\\__/____/
 `)}
-        ${chalk.yellow("○")}      ${chalk.magenta("○")}      ${chalk.green("○")}      ${chalk.blue("○")}      ${chalk.red("○")}      ${chalk.cyan("○")}
-       ${chalk.yellow("/|\\")}    ${chalk.magenta("/|\\")}    ${chalk.green("/|\\")}    ${chalk.blue("/|\\")}    ${chalk.red("/|\\")}    ${chalk.cyan("/|\\")}
-       ${chalk.yellow("/ \\")}    ${chalk.magenta("/ \\")}    ${chalk.green("/ \\")}    ${chalk.blue("/ \\")}    ${chalk.red("/ \\")}    ${chalk.cyan("/ \\")}
+     ${chalk.yellow("○")}      ${chalk.magenta("○")}      ${chalk.green("○")}      ${chalk.blue("○")}      ${chalk.red("○")}      ${chalk.white("○")}      ${chalk.cyan("○")}
+    ${chalk.yellow("/|\\")}    ${chalk.magenta("/|\\")}    ${chalk.green("/|\\")}    ${chalk.blue("/|\\")}    ${chalk.red("/|\\")}    ${chalk.white("/|\\")}    ${chalk.cyan("/|\\")}
+    ${chalk.yellow("/ \\")}    ${chalk.magenta("/ \\")}    ${chalk.green("/ \\")}    ${chalk.blue("/ \\")}    ${chalk.red("/ \\")}    ${chalk.white("/ \\")}    ${chalk.cyan("/ \\")}
 
-    ${chalk.gray("Your code crew is ready.")} ${chalk.bold("One dev. Six agents. Zero bugs.")}
+    ${chalk.gray("Your code crew is ready.")} ${chalk.bold("One dev. Seven agents. Zero bugs.")}
   `,
 ];
 
