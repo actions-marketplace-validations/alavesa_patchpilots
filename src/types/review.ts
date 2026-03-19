@@ -70,3 +70,33 @@ export interface DocsResult {
   docs: DocEntry[];
   summary: string;
 }
+
+export type SecurityCategory =
+  | "injection"
+  | "auth"
+  | "xss"
+  | "csrf"
+  | "secrets"
+  | "crypto"
+  | "input-validation"
+  | "access-control"
+  | "data-exposure"
+  | "misconfiguration";
+
+export interface SecurityFinding {
+  file: string;
+  line?: number;
+  severity: "critical" | "high" | "medium" | "low";
+  category: SecurityCategory;
+  cwe?: string;
+  title: string;
+  description: string;
+  impact: string;
+  remediation: string;
+}
+
+export interface SecurityResult {
+  findings: SecurityFinding[];
+  riskScore: "critical" | "high" | "medium" | "low" | "none";
+  summary: string;
+}

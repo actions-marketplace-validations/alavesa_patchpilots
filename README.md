@@ -50,6 +50,7 @@ npm install -g patchpilots
 | ✨ Coder | `patchpilots improve` | Fixes code based on review findings (diff-based patches) |
 | 🧪 Tester | `patchpilots test` | Generates unit tests for your source files |
 | 📝 Docs | `patchpilots docs` | Generates JSDoc/TSDoc documentation |
+| 🔒 Security | `patchpilots security` | OWASP Top 10 audit, secrets detection, auth analysis |
 | 🎯 Orchestrator | (coordinates) | Manages the pipeline between agents |
 
 ## Quick start
@@ -76,6 +77,9 @@ npx patchpilots test ./src --write
 
 # Generate documentation
 npx patchpilots docs ./src --write
+
+# Run a security audit
+npx patchpilots security ./src
 ```
 
 ## CLI commands
@@ -128,6 +132,16 @@ Generates documentation for source files.
 |--------|-------------|
 | `--write` | Write documented files to disk |
 | `--backup` | Create `.bak` files before overwriting |
+
+### `patchpilots security <path>`
+
+Runs a security audit focused on OWASP Top 10, secrets detection, and auth patterns.
+
+| Option | Description |
+|--------|-------------|
+| `--severity <level>` | Minimum severity: `critical`, `high`, `medium`, `low` |
+| `--json` | Output raw JSON |
+| `--verbose` | Show token usage and timing |
 
 ## Configuration
 
@@ -211,7 +225,7 @@ The LLM client uses typed Anthropic SDK exceptions:
 ## Roadmap
 
 ### Done
-- [x] 6 AI agents: Planner, Reviewer, Coder, Tester, Docs, Orchestrator
+- [x] 7 AI agents: Planner, Reviewer, Coder, Tester, Docs, Security, Orchestrator
 - [x] Structured outputs with Zod schemas
 - [x] Adaptive thinking for deeper code analysis
 - [x] Streaming with real-time progress
@@ -223,7 +237,7 @@ The LLM client uses typed Anthropic SDK exceptions:
 - [x] HTML, CSS, SCSS, Vue, Svelte file support
 
 ### Next up
-- [ ] **Security agent** — OWASP Top 10, secrets detection, input validation, auth pattern analysis
+- [x] **Security agent** — OWASP Top 10, secrets detection, input validation, auth pattern analysis
 - [ ] **Parallel file review** — review files in batches instead of one giant prompt
 - [ ] **GitHub Action** — auto-review PRs and post findings as comments
 - [ ] **`patchpilots audit`** — full pipeline: plan → review → improve → test → docs in one command

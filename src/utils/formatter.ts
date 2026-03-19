@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import type { ReviewResult, ReviewFinding, CoderResult, TestResult, PlanResult, DocsResult, Severity } from "../types/index.js";
+import type { ReviewResult, ReviewFinding, CoderResult, TestResult, PlanResult, DocsResult, SecurityResult, Severity } from "../types/index.js";
 
 const SEVERITY_COLORS: Record<Severity, (text: string) => string> = {
   critical: chalk.red.bold,
@@ -220,6 +220,82 @@ export function formatDocsResult(result: DocsResult): string {
   }
 
   lines.push(chalk.bold("  Summary: ") + `${result.docs.length} file(s) documented`);
+  lines.push(`  ${chalk.gray(result.summary)}`);
+  lines.push("");
+
+  return lines.join("\n");
+}
+
+const SEC_SEVERITY_COLORS: Record<string, (text: string) => string> = {
+  critical: chalk.red.bold,
+  high: chalk.red,
+  medium: chalk.yellow,
+  low: chalk.blue,
+};
+
+const SEC_SEVERITY_ICONS: Record<string, string> = {
+  critical: "🔴",
+  high: "🟠",
+  medium: "🟡",
+  low: "🔵",
+};
+
+const RISK_COLORS: Record<string, (text: string) => string> = {
+  critical: chalk.red.bold,
+  high: chalk.red,
+  medium: chalk.yellow,
+  low: chalk.blue,
+  none: chalk.green,
+};
+
+export function formatSecurityResult(result: SecurityResult): string {
+  const lines: string[] = [];
+
+  lines.push("");
+  lines.push(chalk.bold.underline("Security Audit"));
+  lines.push("");
+
+  if (result.findings.length === 0) {
+    lines.push(chalk.green("  No security issues found. Code looks secure."));
+    lines.push("");
+    return lines.join("\n");
+  }
+
+  // Group by file
+  const byFile = new Map<string, typeof result.findings>();
+  for (const finding of result.findings) {
+    const existing = byFile.get(finding.file) ?? [];
+    existing.push(finding);
+    byFile.set(finding.file, existing);
+  }
+
+  for (const [file, findings] of byFile) {
+    lines.push(chalk.bold(`  🔒 ${file}`));
+    for (const f of findings) {
+      const color = SEC_SEVERITY_COLORS[f.severity] ?? chalk.white;
+      const icon = SEC_SEVERITY_ICONS[f.severity] ?? "⚪";
+      const lineRef = f.line ? chalk.gray(`:${f.line}`) : "";
+      const cwe = f.cwe ? chalk.gray(` (${f.cwe})`) : "";
+      lines.push(`    ${icon} ${color(f.title)}${lineRef} ${chalk.gray(`[${f.category}]`)}${cwe}`);
+      lines.push(`       ${f.description}`);
+      lines.push(`       ${chalk.red("Impact:")} ${f.impact}`);
+      lines.push(`       ${chalk.green("Fix:")} ${f.remediation}`);
+      lines.push("");
+    }
+  }
+
+  // Counts
+  const counts: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 };
+  for (const f of result.findings) counts[f.severity]++;
+
+  const riskColor = RISK_COLORS[result.riskScore] ?? chalk.white;
+  lines.push(chalk.bold("  Risk score: ") + riskColor(result.riskScore.toUpperCase()));
+  lines.push(chalk.bold("  Findings: ") + [
+    counts.critical > 0 ? chalk.red(`${counts.critical} critical`) : null,
+    counts.high > 0 ? chalk.red(`${counts.high} high`) : null,
+    counts.medium > 0 ? chalk.yellow(`${counts.medium} medium`) : null,
+    counts.low > 0 ? chalk.blue(`${counts.low} low`) : null,
+  ].filter(Boolean).join(", "));
   lines.push(`  ${chalk.gray(result.summary)}`);
   lines.push("");
 

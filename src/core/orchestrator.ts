@@ -6,12 +6,13 @@ import { CoderAgent } from "../agents/coder.js";
 import { TesterAgent } from "../agents/tester.js";
 import { PlannerAgent } from "../agents/planner.js";
 import { DocsAgent } from "../agents/docs.js";
+import { SecurityAgent } from "../agents/security.js";
 import { collectFiles } from "../utils/files.js";
-import { formatReviewResult, formatCoderResult, formatTestResult, formatPlanResult, formatDocsResult, formatJson } from "../utils/formatter.js";
+import { formatReviewResult, formatCoderResult, formatTestResult, formatPlanResult, formatDocsResult, formatSecurityResult, formatJson } from "../utils/formatter.js";
 import { log } from "../utils/logger.js";
 import { CostTracker } from "../utils/cost.js";
 import type { PatchPilotsConfig } from "../types/index.js";
-import type { ReviewResult, CoderResult, TestResult, PlanResult, DocsResult } from "../types/review.js";
+import type { ReviewResult, CoderResult, TestResult, PlanResult, DocsResult, SecurityResult } from "../types/review.js";
 
 export interface OrchestratorOptions {
   json?: boolean;
@@ -306,5 +307,50 @@ export class Orchestrator {
 
     this.printCost(options.json);
     return docsResult;
+  }
+
+  async securityAudit(targetPath: string, options: OrchestratorOptions = {}): Promise<SecurityResult> {
+    log.step("Collecting files...");
+    const files = await collectFiles(targetPath, this.config);
+
+    if (files.length === 0) {
+      log.warn("No matching files found.");
+      return { findings: [], riskScore: "none", summary: "No files to audit." };
+    }
+
+    log.info(`Found ${files.length} file(s) to audit`);
+    if (options.verbose) {
+      for (const f of files) log.verbose(`  ${f.path}`);
+    }
+
+    log.step("🔒 Security agent auditing code...");
+    const onToken = this.createStreamCallback(options.verbose ?? false);
+    const security = new SecurityAgent(this.llmClient);
+    const result = await security.execute({ files, config: this.config }, onToken);
+    const securityResult = result.data as SecurityResult;
+    this.costTracker.track("Security", result.tokensUsed);
+
+    if (options.verbose) {
+      console.error("");
+      log.verbose(`Tokens used: ${result.tokensUsed.input} in / ${result.tokensUsed.output} out`);
+    }
+
+    // Filter by severity if specified
+    if (options.severity) {
+      const levels: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
+      const minLevel = levels[options.severity] ?? 1;
+      securityResult.findings = securityResult.findings.filter(
+        (f) => (levels[f.severity] ?? 1) >= minLevel
+      );
+    }
+
+    if (options.json) {
+      console.log(formatJson(securityResult));
+    } else {
+      console.log(formatSecurityResult(securityResult));
+    }
+
+    this.printCost(options.json);
+    return securityResult;
   }
 }
