@@ -6,11 +6,11 @@
 A team of AI agents that reviews and improves your code automatically.
 
 ```
-         ○      ○      ○      ○      ○      ○
-        /|\    /|\    /|\    /|\    /|\    /|\
-        / \    / \    / \    / \    / \    / \
-         🧠      🔍      ✨      🧪      📝      🎯
-      Planner Reviewer Coder  Tester  Docs  Orchestrator
+     ○      ○      ○      ○      ○      ○      ○
+    /|\    /|\    /|\    /|\    /|\    /|\    /|\
+    / \    / \    / \    / \    / \    / \    / \
+     🧠      🔍      ✨      🧪      📝      🔒      🎯
+  Planner Reviewer  Coder   Tester   Docs  Security Orchestrator
 
     ____        __       __    ____  _ __      __
    / __ \____ _/ /______/ /_  / __ \(_) /___  / /______
@@ -18,11 +18,11 @@ A team of AI agents that reviews and improves your code automatically.
  / ____/ /_/ / /_/ /__/ / / / ____/ / / /_/ / /_(__  )
 /_/    \__,_/\__/\___/_/ /_/_/   /_/_/\____/\__/____/
 
-        ○      ○      ○      ○      ○      ○
-       /|\    /|\    /|\    /|\    /|\    /|\
-       / \    / \    / \    / \    / \    / \
+     ○      ○      ○      ○      ○      ○      ○
+    /|\    /|\    /|\    /|\    /|\    /|\    /|\
+    / \    / \    / \    / \    / \    / \    / \
 
-    Your code crew is ready. One dev. Six agents. Zero bugs.
+    Your code crew is ready. One dev. Seven agents. Zero bugs.
 ```
 
 **One dev. Six AI agents. Zero excuses.**
