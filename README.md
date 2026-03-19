@@ -216,7 +216,7 @@ This is an MVP — actively being built in public. Follow along for updates.
 
 ### Next up
 - [x] **Diff-based Coder output** — return patches instead of full files (fixes token limit on large files)
-- [ ] **npm publish** — `npx patchpilots review ./src` from anywhere
+- [x] **npm publish** — `npx patchpilots review ./src` from anywhere
 - [ ] **Parallel file review** — review files in batches instead of one giant prompt
 - [ ] **GitHub Action** — auto-review PRs and post findings as comments
 - [ ] **`patchpilots audit`** — full pipeline: plan → review → improve → test → docs in one command
