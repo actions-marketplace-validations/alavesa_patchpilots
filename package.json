@@ -1,6 +1,6 @@
 {
   "name": "patchpilots",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A team of AI agents that reviews and improves your code automatically",
   "type": "module",
   "bin": {
