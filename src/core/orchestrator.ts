@@ -81,7 +81,14 @@ export class Orchestrator {
     log.step("🔍 Reviewer agent analyzing code...");
     const onToken = this.createStreamCallback(options.verbose ?? false);
     const reviewer = new ReviewerAgent(this.llmClient);
-    const result = await reviewer.execute({ files, config: this.config, memoryContext }, onToken);
+    const result = await reviewer.executeBatched(
+      { files, config: this.config, memoryContext },
+      (results) => ({
+        findings: results.flatMap(r => r.findings),
+        summary: results.map(r => r.summary).join(" "),
+      }),
+      onToken,
+    );
     const reviewResult = result.data as ReviewResult;
     this.costTracker.track("Reviewer", result.tokensUsed);
 
@@ -346,7 +353,18 @@ export class Orchestrator {
     log.step("🔒 Security agent auditing code...");
     const onToken = this.createStreamCallback(options.verbose ?? false);
     const security = new SecurityAgent(this.llmClient);
-    const result = await security.execute({ files, config: this.config, memoryContext }, onToken);
+    const result = await security.executeBatched(
+      { files, config: this.config, memoryContext },
+      (results) => {
+        const allFindings = results.flatMap(r => r.findings);
+        const worstRisk = results.reduce((worst, r) => {
+          const order = ["none", "low", "medium", "high", "critical"];
+          return order.indexOf(r.riskScore) > order.indexOf(worst) ? r.riskScore : worst;
+        }, "none" as SecurityResult["riskScore"]);
+        return { findings: allFindings, riskScore: worstRisk, summary: results.map(r => r.summary).join(" ") };
+      },
+      onToken,
+    );
     const securityResult = result.data as SecurityResult;
     this.costTracker.track("Security", result.tokensUsed);
 
@@ -409,70 +427,89 @@ export class Orchestrator {
       if (options.verbose) { console.error(""); log.verbose(`Planner: ${r.tokensUsed.input} in / ${r.tokensUsed.output} out`); }
     }
 
-    // 2. Review
+    // 2. Review (batched)
     log.step("🔍 Reviewer agent analyzing code...");
     const reviewer = new ReviewerAgent(this.llmClient);
-    const reviewRaw = await reviewer.execute(context, onToken);
+    const reviewRaw = await reviewer.executeBatched(
+      context,
+      (results) => ({ findings: results.flatMap(r => r.findings), summary: results.map(r => r.summary).join(" ") }),
+      onToken,
+    );
     const reviewResult = reviewRaw.data as ReviewResult;
     this.costTracker.track("Reviewer", reviewRaw.tokensUsed);
     if (options.verbose) { console.error(""); log.verbose(`Reviewer: ${reviewRaw.tokensUsed.input} in / ${reviewRaw.tokensUsed.output} out`); }
 
-    // 3. Security
+    // 3. Security (batched)
     log.step("🔒 Security agent auditing code...");
     const security = new SecurityAgent(this.llmClient);
-    const securityRaw = await security.execute(context, onToken);
+    const securityRaw = await security.executeBatched(
+      context,
+      (results) => {
+        const order = ["none", "low", "medium", "high", "critical"];
+        const worst = results.reduce((w, r) => order.indexOf(r.riskScore) > order.indexOf(w) ? r.riskScore : w, "none" as SecurityResult["riskScore"]);
+        return { findings: results.flatMap(r => r.findings), riskScore: worst, summary: results.map(r => r.summary).join(" ") };
+      },
+      onToken,
+    );
     const securityResult = securityRaw.data as SecurityResult;
     this.costTracker.track("Security", securityRaw.tokensUsed);
     if (options.verbose) { console.error(""); log.verbose(`Security: ${securityRaw.tokensUsed.input} in / ${securityRaw.tokensUsed.output} out`); }
 
-    // 4. Coder (fix review + security findings)
-    const combinedFindings = [
-      ...reviewResult.findings.map(f => `[${f.severity}] ${f.title}: ${f.description}${f.suggestion ? ` → ${f.suggestion}` : ""}`),
-      ...securityResult.findings.map(f => `[${f.severity}] ${f.title}: ${f.description} → ${f.remediation}`),
-    ];
-
+    // 4. Coder (batched, fix review + security findings)
     let coderResult: CoderResult = { improvedFiles: [], summary: "No findings to fix." };
-    if (combinedFindings.length > 0) {
+    if (reviewResult.findings.length > 0 || securityResult.findings.length > 0) {
       log.step("✨ Coder agent generating patches...");
       const coder = new CoderAgent(this.llmClient);
-      const coderRaw = await coder.execute({
-        ...context,
-        previousResults: {
-          agentName: "Reviewer+Security",
-          success: true,
-          data: {
-            findings: [...reviewResult.findings, ...securityResult.findings.map(f => ({
-              file: f.file, line: f.line, severity: f.severity === "high" ? "critical" as const : f.severity === "low" ? "info" as const : f.severity as "critical" | "warning" | "info",
-              category: "security" as const, title: f.title, description: f.description, suggestion: f.remediation,
-            }))],
-            summary: `${reviewResult.summary} ${securityResult.summary}`,
+      const coderRaw = await coder.executeBatched(
+        {
+          ...context,
+          previousResults: {
+            agentName: "Reviewer+Security",
+            success: true,
+            data: {
+              findings: [...reviewResult.findings, ...securityResult.findings.map(f => ({
+                file: f.file, line: f.line, severity: f.severity === "high" ? "critical" as const : f.severity === "low" ? "info" as const : f.severity as "critical" | "warning" | "info",
+                category: "security" as const, title: f.title, description: f.description, suggestion: f.remediation,
+              }))],
+              summary: `${reviewResult.summary} ${securityResult.summary}`,
+            },
+            rawResponse: "",
+            tokensUsed: { input: 0, output: 0 },
           },
-          rawResponse: "",
-          tokensUsed: { input: 0, output: 0 },
         },
-      }, onToken);
+        (results) => ({ improvedFiles: results.flatMap(r => r.improvedFiles), summary: results.map(r => r.summary).join(" ") }),
+        onToken,
+      );
       coderResult = coderRaw.data as CoderResult;
       this.costTracker.track("Coder", coderRaw.tokensUsed);
       if (options.verbose) { console.error(""); log.verbose(`Coder: ${coderRaw.tokensUsed.input} in / ${coderRaw.tokensUsed.output} out`); }
     }
 
-    // 5. Tester (optional)
+    // 5. Tester (optional, batched)
     let testResult: TestResult | undefined;
     if (!skip.has("test")) {
       log.step("🧪 Tester agent generating tests...");
       const tester = new TesterAgent(this.llmClient, options.framework ?? "vitest");
-      const r = await tester.execute(context, onToken);
+      const r = await tester.executeBatched(
+        context,
+        (results) => ({ testFiles: results.flatMap(r => r.testFiles), summary: results.map(r => r.summary).join(" ") }),
+        onToken,
+      );
       testResult = r.data as TestResult;
       this.costTracker.track("Tester", r.tokensUsed);
       if (options.verbose) { console.error(""); log.verbose(`Tester: ${r.tokensUsed.input} in / ${r.tokensUsed.output} out`); }
     }
 
-    // 6. Docs (optional)
+    // 6. Docs (optional, batched)
     let docsResult: DocsResult | undefined;
     if (!skip.has("docs")) {
       log.step("📝 Docs agent generating documentation...");
       const docs = new DocsAgent(this.llmClient);
-      const r = await docs.execute(context, onToken);
+      const r = await docs.executeBatched(
+        context,
+        (results) => ({ docs: results.flatMap(r => r.docs), summary: results.map(r => r.summary).join(" ") }),
+        onToken,
+      );
       docsResult = r.data as DocsResult;
       this.costTracker.track("Docs", r.tokensUsed);
       if (options.verbose) { console.error(""); log.verbose(`Docs: ${r.tokensUsed.input} in / ${r.tokensUsed.output} out`); }

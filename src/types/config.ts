@@ -13,6 +13,7 @@ export interface PatchPilotsConfig {
   exclude: string[];
   maxFileSize: number;
   maxFiles: number;
+  batchSize: number;
   customAgents?: CustomAgentConfig[];
 }
 
@@ -24,4 +25,5 @@ export const DEFAULT_CONFIG: Omit<PatchPilotsConfig, "apiKey"> = {
   exclude: ["node_modules/**", "dist/**", ".git/**", "*.min.js", "*.bundle.js"],
   maxFileSize: 100_000,
   maxFiles: 20,
+  batchSize: 5,
 };

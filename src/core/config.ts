@@ -19,6 +19,7 @@ const configSchema = z.object({
   exclude: z.array(z.string()).optional(),
   maxFileSize: z.number().positive().optional(),
   maxFiles: z.number().positive().optional(),
+  batchSize: z.number().positive().optional(),
   customAgents: z.array(customAgentSchema).optional(),
 });
 
