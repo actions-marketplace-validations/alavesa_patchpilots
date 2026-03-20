@@ -32,7 +32,7 @@ Built for solo developers and hobby projects — when you don't have a team to r
 ## Install
 
 ```bash
-npx patchpilots review ./src
+npx patchpilots audit ./src
 ```
 
 Or install globally:
@@ -41,17 +41,35 @@ Or install globally:
 npm install -g patchpilots
 ```
 
+## The Killer Feature
+
+**`patchpilots audit`** — run all 7 agents in one command. No other tool does this.
+
+```bash
+npx patchpilots audit ./src --write
+```
+
+```
+🧠 Planner → 🔍 Reviewer → 🔒 Security → ✨ Coder → 🧪 Tester → 📝 Docs
+```
+
+One command gives you: an implementation plan, code review, security audit, auto-fixes, unit tests, and documentation. Skip what you don't need:
+
+```bash
+npx patchpilots audit ./src --skip plan,docs --write
+```
+
 ## The Crew
 
 | Agent | Command | What it does |
 |-------|---------|--------------|
+| 🎯 Orchestrator | `patchpilots audit` | Runs the full pipeline in one command |
 | 🧠 Planner | `patchpilots plan` | Analyzes codebase and breaks down work into tasks |
 | 🔍 Reviewer | `patchpilots review` | Finds bugs, security issues, and code smells |
 | ✨ Coder | `patchpilots improve` | Fixes code based on review findings (diff-based patches) |
 | 🧪 Tester | `patchpilots test` | Generates unit tests for your source files |
 | 📝 Docs | `patchpilots docs` | Generates JSDoc/TSDoc documentation |
 | 🔒 Security | `patchpilots security` | OWASP Top 10 audit, secrets detection, auth analysis |
-| 🎯 Orchestrator | (coordinates) | Manages the pipeline between agents |
 
 ## Quick start
 
@@ -63,26 +81,34 @@ echo '{"apiKey": "sk-ant-..."}' > ~/.patchpilots.json
 # Option 2: Environment variable
 export ANTHROPIC_API_KEY=your-key-here
 
-# Review code
+# Run the full audit
+npx patchpilots audit ./src --write
+
+# Or run individual agents:
 npx patchpilots review ./src
-
-# Generate an implementation plan
-npx patchpilots plan ./src --task "add authentication"
-
-# Review and fix code
-npx patchpilots improve ./src --write
-
-# Generate unit tests
-npx patchpilots test ./src --write
-
-# Generate documentation
-npx patchpilots docs ./src --write
-
-# Run a security audit
 npx patchpilots security ./src
+npx patchpilots improve ./src --write
+npx patchpilots test ./src --write
+npx patchpilots docs ./src --write
+npx patchpilots plan ./src --task "add authentication"
 ```
 
 ## CLI commands
+
+### `patchpilots audit <path>`
+
+Runs all agents in sequence: plan → review → security → improve → test → docs.
+
+| Option | Description |
+|--------|-------------|
+| `--write` | Apply patches and write tests/docs to disk |
+| `--backup` | Create `.bak` files before patching |
+| `--skip <agents>` | Skip agents (comma-separated: `plan,test,docs`) |
+| `--severity <level>` | Minimum severity for review findings |
+| `--framework <name>` | Test framework (default: `vitest`) |
+| `--json` | Output raw JSON |
+| `--verbose` | Show per-agent token usage |
+| `-m, --model <model>` | Claude model to use |
 
 ### `patchpilots review <path>`
 
@@ -172,23 +198,12 @@ TypeScript, JavaScript, JSX/TSX, Python, Go, Rust, Java, Ruby, PHP, C/C++, C#, S
 
 ## Powered by Claude API
 
-### Structured outputs
-Every agent response is **guaranteed** to match its Zod schema via JSON schema enforcement. No regex JSON extraction, no prayer-based parsing — the API enforces the schema.
-
-### Adaptive thinking
-Agents use Claude's adaptive thinking mode for deeper reasoning. The Reviewer agent thinks through code logic before flagging issues, catching bugs that a surface-level scan would miss.
-
-### Streaming
-Responses are streamed in real-time. No hanging on long requests, no timeouts. Use `--verbose` to see thinking progress as it happens.
-
-### Prompt caching
-System prompts are cached via Claude's `cache_control` — repeat runs against the same project cost ~90% less on the cached portion.
-
-### Cost tracking
-Every run shows a cost summary with per-agent token usage and estimated USD cost.
-
-### Diff-based patches
-The Coder agent returns search-and-replace patches instead of full file content, dramatically reducing token usage and enabling fixes on large files.
+- **Structured outputs** — guaranteed schema compliance via JSON schema enforcement
+- **Adaptive thinking** — deeper reasoning catches bugs a surface scan misses
+- **Streaming** — real-time response delivery, no timeouts
+- **Prompt caching** — ~90% cost savings on repeat runs
+- **Cost tracking** — per-agent token usage and USD estimate after every run
+- **Diff-based patches** — search-and-replace instead of full files, works on large codebases
 
 ## Architecture
 
@@ -202,46 +217,25 @@ class MyAgent extends BaseAgent<MyOutputType> {
 }
 ```
 
-Adding a new agent is one file + three methods. The orchestrator handles coordination, streaming, error handling, and output formatting.
-
-### Error handling
-
-The LLM client uses typed Anthropic SDK exceptions:
-- `RateLimitError` — automatic retry with backoff
-- `AuthenticationError` — clear message about API key
-- `APIError` — surfaced with status code and details
-
-## Tech stack
-
-- TypeScript + Node.js
-- Claude API (`@anthropic-ai/sdk`)
-- Structured outputs (JSON schema) — guaranteed schema compliance
-- Adaptive thinking — deeper code analysis
-- Streaming — real-time response delivery
-- Diff-based patches — efficient code fixes
-- Prompt caching — cost optimization
-- Commander (CLI) + Chalk (terminal formatting) + Zod (validation)
+Adding a new agent is one file + three methods.
 
 ## Roadmap
 
 ### Done
 - [x] 7 AI agents: Planner, Reviewer, Coder, Tester, Docs, Security, Orchestrator
-- [x] Structured outputs with Zod schemas
-- [x] Adaptive thinking for deeper code analysis
-- [x] Streaming with real-time progress
-- [x] Prompt caching (~90% cost savings on repeat runs)
-- [x] Cost tracking (per-agent token usage and USD estimate)
-- [x] Global config (`~/.patchpilots.json`)
+- [x] `patchpilots audit` — full pipeline in one command
+- [x] Structured outputs, adaptive thinking, streaming
+- [x] Prompt caching + cost tracking
 - [x] Diff-based Coder output (patches instead of full files)
+- [x] Global config + per-project config
 - [x] Published to npm (`npx patchpilots`)
-- [x] HTML, CSS, SCSS, Vue, Svelte file support
+- [x] 18 file types supported
 
 ### Next up
-- [x] **Security agent** — OWASP Top 10, secrets detection, input validation, auth pattern analysis
-- [ ] **Parallel file review** — review files in batches instead of one giant prompt
 - [ ] **GitHub Action** — auto-review PRs and post findings as comments
-- [x] **`patchpilots audit`** — full pipeline: plan → review → security → improve → test → docs in one command
+- [ ] **Parallel file review** — review in batches instead of one giant prompt
 - [ ] **Smart model routing** — Haiku for Docs/Tester, Sonnet for Reviewer/Coder
+- [ ] **Custom agents** — define your own agents via config
 - [ ] **Designer agent** — generate CSS, design tokens, and component markup
 
 ## License
