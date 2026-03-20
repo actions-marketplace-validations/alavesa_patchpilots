@@ -12,6 +12,7 @@ import { collectFiles } from "../utils/files.js";
 import { formatReviewResult, formatCoderResult, formatTestResult, formatPlanResult, formatDocsResult, formatSecurityResult, formatJson } from "../utils/formatter.js";
 import { log } from "../utils/logger.js";
 import { CostTracker } from "../utils/cost.js";
+import { loadMemory, saveMemory, updateMemory, buildMemoryContext, formatMemoryStatus } from "../utils/memory.js";
 import type { PatchPilotsConfig } from "../types/index.js";
 import type { ReviewResult, CoderResult, TestResult, PlanResult, DocsResult, SecurityResult, AuditResult } from "../types/review.js";
 
@@ -70,10 +71,17 @@ export class Orchestrator {
       for (const f of files) log.verbose(`  ${f.path}`);
     }
 
+    // Load project memory
+    const memory = loadMemory(targetPath);
+    const memoryContext = buildMemoryContext(memory);
+    if (memory.totalRuns > 0 && !options.json) {
+      log.info(`Project memory: ${memory.totalRuns} previous runs, ${memory.findings.filter(f => f.status === "open").length} open issues`);
+    }
+
     log.step("🔍 Reviewer agent analyzing code...");
     const onToken = this.createStreamCallback(options.verbose ?? false);
     const reviewer = new ReviewerAgent(this.llmClient);
-    const result = await reviewer.execute({ files, config: this.config }, onToken);
+    const result = await reviewer.execute({ files, config: this.config, memoryContext }, onToken);
     const reviewResult = result.data as ReviewResult;
     this.costTracker.track("Reviewer", result.tokensUsed);
 
@@ -81,6 +89,12 @@ export class Orchestrator {
       console.error(""); // newline after dots
       log.verbose(`Tokens used: ${result.tokensUsed.input} in / ${result.tokensUsed.output} out`);
     }
+
+    // Update and save memory
+    const updatedMemory = updateMemory(memory, reviewResult.findings.map(f => ({
+      file: f.file, title: f.title, severity: f.severity, category: f.category,
+    })));
+    saveMemory(targetPath, updatedMemory);
 
     // Filter by severity if specified
     if (options.severity) {
@@ -325,10 +339,14 @@ export class Orchestrator {
       for (const f of files) log.verbose(`  ${f.path}`);
     }
 
+    // Load project memory
+    const memory = loadMemory(targetPath);
+    const memoryContext = buildMemoryContext(memory);
+
     log.step("🔒 Security agent auditing code...");
     const onToken = this.createStreamCallback(options.verbose ?? false);
     const security = new SecurityAgent(this.llmClient);
-    const result = await security.execute({ files, config: this.config }, onToken);
+    const result = await security.execute({ files, config: this.config, memoryContext }, onToken);
     const securityResult = result.data as SecurityResult;
     this.costTracker.track("Security", result.tokensUsed);
 
@@ -336,6 +354,12 @@ export class Orchestrator {
       console.error("");
       log.verbose(`Tokens used: ${result.tokensUsed.input} in / ${result.tokensUsed.output} out`);
     }
+
+    // Update and save memory
+    const updatedMemory = updateMemory(memory, securityResult.findings.map(f => ({
+      file: f.file, title: f.title, severity: f.severity, category: f.category,
+    })));
+    saveMemory(targetPath, updatedMemory);
 
     // Filter by severity if specified
     if (options.severity) {

@@ -3,4 +3,5 @@ dist/
 .env
 *.tsbuildinfo
 .patchpilots.json
+.patchpilots-memory.json
 .npmrc

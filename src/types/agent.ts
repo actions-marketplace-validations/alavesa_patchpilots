@@ -10,6 +10,7 @@ export interface AgentContext {
   files: FileContent[];
   previousResults?: AgentResult;
   config: PatchPilotsConfig;
+  memoryContext?: string;
 }
 
 export interface AgentResult {

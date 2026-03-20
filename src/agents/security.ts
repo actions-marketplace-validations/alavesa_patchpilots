@@ -97,6 +97,10 @@ If the code is secure, return an empty findings array with riskScore "none".`;
   protected buildUserMessage(context: AgentContext): string {
     const parts = ["Perform a security audit on the following source files:\n"];
 
+    if (context.memoryContext) {
+      parts.push(context.memoryContext);
+    }
+
     for (const file of context.files) {
       parts.push(`## File: ${file.path} (${file.language})`);
       parts.push("```" + file.language);

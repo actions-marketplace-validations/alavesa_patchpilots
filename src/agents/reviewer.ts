@@ -44,6 +44,10 @@ If the code looks good, return an empty findings array with a positive summary.`
   protected buildUserMessage(context: AgentContext): string {
     const parts = ["Please review the following code files:\n"];
 
+    if (context.memoryContext) {
+      parts.push(context.memoryContext);
+    }
+
     for (const file of context.files) {
       parts.push(`## File: ${file.path} (${file.language})`);
       parts.push("```" + file.language);

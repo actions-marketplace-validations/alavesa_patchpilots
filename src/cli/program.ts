@@ -7,6 +7,7 @@ import { registerDocsCommand } from "./commands/docs.js";
 import { registerSecurityCommand } from "./commands/security.js";
 import { registerAuditCommand } from "./commands/audit.js";
 import { registerCustomCommand } from "./commands/custom.js";
+import { registerMemoryCommand } from "./commands/memory.js";
 
 export function createProgram(): Command {
   const program = new Command();
@@ -24,6 +25,7 @@ export function createProgram(): Command {
   registerSecurityCommand(program);
   registerAuditCommand(program);
   registerCustomCommand(program);
+  registerMemoryCommand(program);
 
   return program;
 }

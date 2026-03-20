@@ -1,0 +1,155 @@
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { log } from "./logger.js";
+
+const MEMORY_FILE = ".patchpilots-memory.json";
+
+export interface MemoryFinding {
+  file: string;
+  title: string;
+  severity: string;
+  category: string;
+  status: "open" | "fixed";
+  firstSeen: string;
+  lastSeen: string;
+  occurrences: number;
+}
+
+export interface ProjectMemory {
+  projectPath: string;
+  lastRun: string;
+  totalRuns: number;
+  findings: MemoryFinding[];
+}
+
+function getMemoryPath(targetPath: string): string {
+  return resolve(dirname(resolve(targetPath)), MEMORY_FILE);
+}
+
+export function loadMemory(targetPath: string): ProjectMemory {
+  const memPath = getMemoryPath(targetPath);
+  if (!existsSync(memPath)) {
+    return {
+      projectPath: resolve(targetPath),
+      lastRun: new Date().toISOString(),
+      totalRuns: 0,
+      findings: [],
+    };
+  }
+
+  try {
+    return JSON.parse(readFileSync(memPath, "utf-8"));
+  } catch {
+    return {
+      projectPath: resolve(targetPath),
+      lastRun: new Date().toISOString(),
+      totalRuns: 0,
+      findings: [],
+    };
+  }
+}
+
+export function saveMemory(targetPath: string, memory: ProjectMemory): void {
+  const memPath = getMemoryPath(targetPath);
+  writeFileSync(memPath, JSON.stringify(memory, null, 2), "utf-8");
+  log.verbose(`Memory saved to ${memPath}`);
+}
+
+export function updateMemory(
+  memory: ProjectMemory,
+  currentFindings: Array<{ file: string; title: string; severity: string; category?: string }>,
+): ProjectMemory {
+  const now = new Date().toISOString();
+  const currentKeys = new Set(currentFindings.map(f => `${f.file}::${f.title}`));
+
+  // Update existing findings
+  for (const existing of memory.findings) {
+    const key = `${existing.file}::${existing.title}`;
+    if (currentKeys.has(key)) {
+      // Still present — bump occurrence
+      existing.lastSeen = now;
+      existing.occurrences++;
+      existing.status = "open";
+    } else if (existing.status === "open") {
+      // Was open, no longer found — mark as fixed
+      existing.status = "fixed";
+    }
+  }
+
+  // Add new findings
+  const existingKeys = new Set(memory.findings.map(f => `${f.file}::${f.title}`));
+  for (const finding of currentFindings) {
+    const key = `${finding.file}::${finding.title}`;
+    if (!existingKeys.has(key)) {
+      memory.findings.push({
+        file: finding.file,
+        title: finding.title,
+        severity: finding.severity,
+        category: finding.category ?? "unknown",
+        status: "open",
+        firstSeen: now,
+        lastSeen: now,
+        occurrences: 1,
+      });
+    }
+  }
+
+  memory.lastRun = now;
+  memory.totalRuns++;
+
+  return memory;
+}
+
+export function buildMemoryContext(memory: ProjectMemory): string {
+  if (memory.totalRuns === 0 || memory.findings.length === 0) return "";
+
+  const recurring = memory.findings.filter(f => f.occurrences > 1 && f.status === "open");
+  const recentlyFixed = memory.findings.filter(f => f.status === "fixed").slice(-5);
+  const openCount = memory.findings.filter(f => f.status === "open").length;
+
+  const lines: string[] = [];
+  lines.push(`\n## Project Memory (${memory.totalRuns} previous runs)\n`);
+
+  if (recurring.length > 0) {
+    lines.push("### Recurring issues (found multiple times — pay extra attention):");
+    for (const f of recurring) {
+      lines.push(`- **${f.title}** in \`${f.file}\` — found ${f.occurrences} times since ${f.firstSeen.split("T")[0]} [${f.severity}]`);
+    }
+    lines.push("");
+  }
+
+  if (recentlyFixed.length > 0) {
+    lines.push("### Recently fixed (verify these stay fixed):");
+    for (const f of recentlyFixed) {
+      lines.push(`- ~~${f.title}~~ in \`${f.file}\` — was ${f.severity}, now fixed`);
+    }
+    lines.push("");
+  }
+
+  lines.push(`Open issues: ${openCount} | Total tracked: ${memory.findings.length}`);
+  lines.push("");
+
+  return lines.join("\n");
+}
+
+export function formatMemoryStatus(memory: ProjectMemory): string {
+  const open = memory.findings.filter(f => f.status === "open");
+  const fixed = memory.findings.filter(f => f.status === "fixed");
+  const recurring = memory.findings.filter(f => f.occurrences > 1 && f.status === "open");
+
+  const lines: string[] = [];
+  lines.push("");
+  lines.push(`Project memory: ${memory.totalRuns} runs | ${memory.findings.length} findings tracked`);
+  lines.push(`  Open: ${open.length} | Fixed: ${fixed.length} | Recurring: ${recurring.length}`);
+
+  if (recurring.length > 0) {
+    lines.push("");
+    lines.push("  Recurring issues:");
+    for (const f of recurring) {
+      lines.push(`    ⚠ ${f.title} (${f.file}) — ${f.occurrences}x since ${f.firstSeen.split("T")[0]}`);
+    }
+  }
+
+  lines.push("");
+  return lines.join("\n");
+}

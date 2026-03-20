@@ -173,6 +173,33 @@ Runs a security audit focused on OWASP Top 10, secrets detection, and auth patte
 
 Runs a custom agent you defined in `.patchpilots.json`. List available agents with `patchpilots custom list .`.
 
+### `patchpilots memory <path>`
+
+View or clear project memory from previous runs.
+
+| Option | Description |
+|--------|-------------|
+| `--clear` | Clear all project memory |
+| `--json` | Output raw JSON |
+
+## Project Memory
+
+PatchPilots remembers. After each review or security audit, findings are tracked in `.patchpilots-memory.json`. On the next run, agents get context about:
+
+- **Recurring issues** — found multiple times across runs, flagged for extra attention
+- **Recently fixed** — verified to stay fixed
+- **Open vs closed** — track what's been addressed
+
+```bash
+# View memory status
+npx patchpilots memory ./src
+
+# Clear memory
+npx patchpilots memory ./src --clear
+```
+
+Memory makes every subsequent review smarter — agents know what was found before, what keeps coming back, and what's been fixed.
+
 ## Custom Agents
 
 Define your own review rules in `.patchpilots.json`:
@@ -266,6 +293,8 @@ Adding a new agent is one file + three methods.
 - [x] Diff-based Coder output (patches instead of full files)
 - [x] Global config + per-project config
 - [x] Published to npm (`npx patchpilots`)
+- [x] Custom agents via `.patchpilots.json`
+- [x] Project memory — tracks findings across runs
 - [x] 18 file types supported
 
 ### Next up
