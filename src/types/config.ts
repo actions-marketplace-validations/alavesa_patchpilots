@@ -1,3 +1,9 @@
+export interface CustomAgentConfig {
+  name: string;
+  description: string;
+  prompt: string;
+}
+
 export interface PatchPilotsConfig {
   apiKey: string;
   model: string;
@@ -7,6 +13,7 @@ export interface PatchPilotsConfig {
   exclude: string[];
   maxFileSize: number;
   maxFiles: number;
+  customAgents?: CustomAgentConfig[];
 }
 
 export const DEFAULT_CONFIG: Omit<PatchPilotsConfig, "apiKey"> = {

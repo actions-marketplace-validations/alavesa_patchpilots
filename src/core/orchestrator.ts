@@ -7,6 +7,7 @@ import { TesterAgent } from "../agents/tester.js";
 import { PlannerAgent } from "../agents/planner.js";
 import { DocsAgent } from "../agents/docs.js";
 import { SecurityAgent } from "../agents/security.js";
+import { CustomAgent } from "../agents/custom.js";
 import { collectFiles } from "../utils/files.js";
 import { formatReviewResult, formatCoderResult, formatTestResult, formatPlanResult, formatDocsResult, formatSecurityResult, formatJson } from "../utils/formatter.js";
 import { log } from "../utils/logger.js";
@@ -521,5 +522,59 @@ export class Orchestrator {
 
     this.printCost(options.json);
     return auditResult;
+  }
+
+  async runCustomAgent(agentName: string, targetPath: string, options: OrchestratorOptions = {}): Promise<ReviewResult> {
+    const agentConfig = this.config.customAgents?.find(a => a.name === agentName);
+    if (!agentConfig) {
+      const available = this.config.customAgents?.map(a => a.name).join(", ") || "none";
+      throw new Error(`Custom agent "${agentName}" not found. Available: ${available}`);
+    }
+
+    log.step("Collecting files...");
+    const files = await collectFiles(targetPath, this.config);
+
+    if (files.length === 0) {
+      log.warn("No matching files found.");
+      return { findings: [], summary: "No files to review." };
+    }
+
+    log.info(`Found ${files.length} file(s) to review`);
+    if (options.verbose) {
+      for (const f of files) log.verbose(`  ${f.path}`);
+    }
+
+    log.step(`🔧 Custom agent "${agentConfig.name}" reviewing code...`);
+    const onToken = this.createStreamCallback(options.verbose ?? false);
+    const agent = new CustomAgent(this.llmClient, agentConfig);
+    const result = await agent.execute({ files, config: this.config }, onToken);
+    const reviewResult = result.data as ReviewResult;
+    this.costTracker.track(agentConfig.name, result.tokensUsed);
+
+    if (options.verbose) {
+      console.error("");
+      log.verbose(`Tokens used: ${result.tokensUsed.input} in / ${result.tokensUsed.output} out`);
+    }
+
+    if (options.severity) {
+      const levels: Record<string, number> = { critical: 3, warning: 2, info: 1 };
+      const minLevel = levels[options.severity] ?? 1;
+      reviewResult.findings = reviewResult.findings.filter(
+        (f) => (levels[f.severity] ?? 1) >= minLevel
+      );
+    }
+
+    if (options.json) {
+      console.log(formatJson(reviewResult));
+    } else {
+      console.log(formatReviewResult(reviewResult));
+    }
+
+    this.printCost(options.json);
+    return reviewResult;
+  }
+
+  listCustomAgents(): string[] {
+    return this.config.customAgents?.map(a => `${a.name} — ${a.description}`) ?? [];
   }
 }

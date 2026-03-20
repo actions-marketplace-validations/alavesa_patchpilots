@@ -4,6 +4,12 @@ import { homedir } from "node:os";
 import { z } from "zod";
 import { DEFAULT_CONFIG, type PatchPilotsConfig } from "../types/index.js";
 
+const customAgentSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  prompt: z.string(),
+});
+
 const configSchema = z.object({
   apiKey: z.string().optional(),
   model: z.string().optional(),
@@ -13,6 +19,7 @@ const configSchema = z.object({
   exclude: z.array(z.string()).optional(),
   maxFileSize: z.number().positive().optional(),
   maxFiles: z.number().positive().optional(),
+  customAgents: z.array(customAgentSchema).optional(),
 });
 
 function findConfigFile(startDir: string): string | null {

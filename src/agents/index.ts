@@ -5,3 +5,4 @@ export { TesterAgent } from "./tester.js";
 export { PlannerAgent } from "./planner.js";
 export { DocsAgent } from "./docs.js";
 export { SecurityAgent } from "./security.js";
+export { CustomAgent } from "./custom.js";

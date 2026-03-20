@@ -6,6 +6,7 @@ import { registerPlanCommand } from "./commands/plan.js";
 import { registerDocsCommand } from "./commands/docs.js";
 import { registerSecurityCommand } from "./commands/security.js";
 import { registerAuditCommand } from "./commands/audit.js";
+import { registerCustomCommand } from "./commands/custom.js";
 
 export function createProgram(): Command {
   const program = new Command();
@@ -22,6 +23,7 @@ export function createProgram(): Command {
   registerDocsCommand(program);
   registerSecurityCommand(program);
   registerAuditCommand(program);
+  registerCustomCommand(program);
 
   return program;
 }

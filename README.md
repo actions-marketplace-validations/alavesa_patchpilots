@@ -169,6 +169,43 @@ Runs a security audit focused on OWASP Top 10, secrets detection, and auth patte
 | `--json` | Output raw JSON |
 | `--verbose` | Show token usage and timing |
 
+### `patchpilots custom <agent-name> <path>`
+
+Runs a custom agent you defined in `.patchpilots.json`. List available agents with `patchpilots custom list .`.
+
+## Custom Agents
+
+Define your own review rules in `.patchpilots.json`:
+
+```json
+{
+  "customAgents": [
+    {
+      "name": "naming",
+      "description": "Check naming conventions",
+      "prompt": "Review code for our naming rules: components PascalCase, hooks use*, utils camelCase, constants UPPER_SNAKE"
+    },
+    {
+      "name": "api-patterns",
+      "description": "Verify API patterns",
+      "prompt": "Check that all API calls use our fetchWrapper, have error handling, and include loading states"
+    }
+  ]
+}
+```
+
+Then run:
+
+```bash
+# Run your custom agent
+npx patchpilots custom naming ./src
+
+# List available custom agents
+npx patchpilots custom list .
+```
+
+No other AI code review tool lets you define your own agents like this.
+
 ## Configuration
 
 Set your API key **once globally** so it works for every project:
@@ -235,7 +272,7 @@ Adding a new agent is one file + three methods.
 - [ ] **GitHub Action** — auto-review PRs and post findings as comments
 - [ ] **Parallel file review** — review in batches instead of one giant prompt
 - [ ] **Smart model routing** — Haiku for Docs/Tester, Sonnet for Reviewer/Coder
-- [ ] **Custom agents** — define your own agents via config
+- [x] **Custom agents** — define your own agents via `.patchpilots.json`
 - [ ] **Designer agent** — generate CSS, design tokens, and component markup
 
 ## License
