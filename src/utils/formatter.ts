@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import type { ReviewResult, ReviewFinding, CoderResult, TestResult, PlanResult, DocsResult, SecurityResult, Severity } from "../types/index.js";
+import type { ReviewResult, ReviewFinding, CoderResult, TestResult, PlanResult, DocsResult, SecurityResult, AuditResult, Severity } from "../types/index.js";
 
 const SEVERITY_COLORS: Record<Severity, (text: string) => string> = {
   critical: chalk.red.bold,
@@ -297,6 +297,96 @@ export function formatSecurityResult(result: SecurityResult): string {
     counts.low > 0 ? chalk.blue(`${counts.low} low`) : null,
   ].filter(Boolean).join(", "));
   lines.push(`  ${chalk.gray(result.summary)}`);
+  lines.push("");
+
+  return lines.join("\n");
+}
+
+export function formatAuditResult(result: AuditResult): string {
+  const lines: string[] = [];
+  const divider = chalk.gray("═".repeat(50));
+  const thinDivider = chalk.gray("─".repeat(50));
+
+  lines.push("");
+  lines.push(divider);
+  lines.push(chalk.bold.cyan("  PatchPilots Full Audit Report"));
+  lines.push(divider);
+
+  // Plan
+  if (result.plan) {
+    lines.push("");
+    lines.push(chalk.bold("  🧠 Plan"));
+    if (result.plan.goal) lines.push(`     ${result.plan.goal}`);
+    lines.push(`     ${result.plan.tasks.length} tasks identified`);
+  }
+
+  // Review
+  lines.push("");
+  lines.push(chalk.bold("  🔍 Code Review"));
+  if (result.review.findings.length === 0) {
+    lines.push(chalk.green("     No issues found"));
+  } else {
+    const rc: Record<string, number> = { critical: 0, warning: 0, info: 0 };
+    for (const f of result.review.findings) rc[f.severity]++;
+    lines.push("     " + [
+      rc.critical > 0 ? chalk.red(`${rc.critical} critical`) : null,
+      rc.warning > 0 ? chalk.yellow(`${rc.warning} warnings`) : null,
+      rc.info > 0 ? chalk.blue(`${rc.info} info`) : null,
+    ].filter(Boolean).join(", "));
+  }
+
+  // Security
+  lines.push("");
+  lines.push(chalk.bold("  🔒 Security Audit"));
+  const riskColor = result.security.riskScore === "none" ? chalk.green
+    : result.security.riskScore === "low" ? chalk.blue
+    : result.security.riskScore === "medium" ? chalk.yellow
+    : chalk.red;
+  lines.push(`     Risk score: ${riskColor(result.security.riskScore.toUpperCase())}`);
+  if (result.security.findings.length > 0) {
+    const sc: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 };
+    for (const f of result.security.findings) sc[f.severity]++;
+    lines.push("     " + [
+      sc.critical > 0 ? chalk.red(`${sc.critical} critical`) : null,
+      sc.high > 0 ? chalk.red(`${sc.high} high`) : null,
+      sc.medium > 0 ? chalk.yellow(`${sc.medium} medium`) : null,
+      sc.low > 0 ? chalk.blue(`${sc.low} low`) : null,
+    ].filter(Boolean).join(", "));
+  }
+
+  // Coder
+  lines.push("");
+  lines.push(chalk.bold("  ✨ Improvements"));
+  if (result.totalPatches === 0) {
+    lines.push(chalk.green("     No patches needed"));
+  } else {
+    lines.push(`     ${chalk.green(`${result.totalPatches} patches`)} across ${result.coder.improvedFiles.length} file(s)`);
+  }
+
+  // Tests
+  if (result.tests) {
+    lines.push("");
+    lines.push(chalk.bold("  🧪 Tests"));
+    const totalTests = result.tests.testFiles.reduce((s, f) => s + f.testCount, 0);
+    lines.push(`     ${chalk.green(`${totalTests} tests`)} generated across ${result.tests.testFiles.length} file(s)`);
+  }
+
+  // Docs
+  if (result.docs) {
+    lines.push("");
+    lines.push(chalk.bold("  📝 Documentation"));
+    lines.push(`     ${result.docs.docs.length} file(s) documented`);
+  }
+
+  // Summary
+  lines.push("");
+  lines.push(thinDivider);
+  lines.push(chalk.bold(`  Summary: `) +
+    `${result.totalFindings} findings | ${result.totalPatches} patches` +
+    (result.tests ? ` | ${result.tests.testFiles.reduce((s, f) => s + f.testCount, 0)} tests` : "") +
+    (result.docs ? ` | ${result.docs.docs.length} docs` : "")
+  );
+  lines.push(divider);
   lines.push("");
 
   return lines.join("\n");

@@ -100,3 +100,16 @@ export interface SecurityResult {
   riskScore: "critical" | "high" | "medium" | "low" | "none";
   summary: string;
 }
+
+export interface AuditResult {
+  plan?: PlanResult;
+  review: ReviewResult;
+  security: SecurityResult;
+  coder: CoderResult;
+  tests?: TestResult;
+  docs?: DocsResult;
+  totalFindings: number;
+  totalPatches: number;
+  riskScore: string;
+  summary: string;
+}

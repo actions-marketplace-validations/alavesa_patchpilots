@@ -12,7 +12,7 @@ import { formatReviewResult, formatCoderResult, formatTestResult, formatPlanResu
 import { log } from "../utils/logger.js";
 import { CostTracker } from "../utils/cost.js";
 import type { PatchPilotsConfig } from "../types/index.js";
-import type { ReviewResult, CoderResult, TestResult, PlanResult, DocsResult, SecurityResult } from "../types/review.js";
+import type { ReviewResult, CoderResult, TestResult, PlanResult, DocsResult, SecurityResult, AuditResult } from "../types/review.js";
 
 export interface OrchestratorOptions {
   json?: boolean;
@@ -22,6 +22,7 @@ export interface OrchestratorOptions {
   severity?: string;
   framework?: string;
   task?: string;
+  skip?: string[];
 }
 
 export class Orchestrator {
@@ -352,5 +353,173 @@ export class Orchestrator {
 
     this.printCost(options.json);
     return securityResult;
+  }
+
+  async audit(targetPath: string, options: OrchestratorOptions = {}): Promise<AuditResult> {
+    const skip = new Set(options.skip ?? []);
+    const files = await collectFiles(targetPath, this.config);
+
+    if (files.length === 0) {
+      log.warn("No matching files found.");
+      return {
+        review: { findings: [], summary: "" },
+        security: { findings: [], riskScore: "none", summary: "" },
+        coder: { improvedFiles: [], summary: "" },
+        totalFindings: 0, totalPatches: 0, riskScore: "none", summary: "No files to audit.",
+      };
+    }
+
+    log.info(`Found ${files.length} file(s) to audit`);
+    const onToken = this.createStreamCallback(options.verbose ?? false);
+    const context = { files, config: this.config };
+
+    // 1. Plan (optional)
+    let planResult: PlanResult | undefined;
+    if (!skip.has("plan")) {
+      log.step("🧠 Planner agent analyzing codebase...");
+      const planner = new PlannerAgent(this.llmClient, options.task);
+      const r = await planner.execute(context, onToken);
+      planResult = r.data as PlanResult;
+      this.costTracker.track("Planner", r.tokensUsed);
+      if (options.verbose) { console.error(""); log.verbose(`Planner: ${r.tokensUsed.input} in / ${r.tokensUsed.output} out`); }
+    }
+
+    // 2. Review
+    log.step("🔍 Reviewer agent analyzing code...");
+    const reviewer = new ReviewerAgent(this.llmClient);
+    const reviewRaw = await reviewer.execute(context, onToken);
+    const reviewResult = reviewRaw.data as ReviewResult;
+    this.costTracker.track("Reviewer", reviewRaw.tokensUsed);
+    if (options.verbose) { console.error(""); log.verbose(`Reviewer: ${reviewRaw.tokensUsed.input} in / ${reviewRaw.tokensUsed.output} out`); }
+
+    // 3. Security
+    log.step("🔒 Security agent auditing code...");
+    const security = new SecurityAgent(this.llmClient);
+    const securityRaw = await security.execute(context, onToken);
+    const securityResult = securityRaw.data as SecurityResult;
+    this.costTracker.track("Security", securityRaw.tokensUsed);
+    if (options.verbose) { console.error(""); log.verbose(`Security: ${securityRaw.tokensUsed.input} in / ${securityRaw.tokensUsed.output} out`); }
+
+    // 4. Coder (fix review + security findings)
+    const combinedFindings = [
+      ...reviewResult.findings.map(f => `[${f.severity}] ${f.title}: ${f.description}${f.suggestion ? ` → ${f.suggestion}` : ""}`),
+      ...securityResult.findings.map(f => `[${f.severity}] ${f.title}: ${f.description} → ${f.remediation}`),
+    ];
+
+    let coderResult: CoderResult = { improvedFiles: [], summary: "No findings to fix." };
+    if (combinedFindings.length > 0) {
+      log.step("✨ Coder agent generating patches...");
+      const coder = new CoderAgent(this.llmClient);
+      const coderRaw = await coder.execute({
+        ...context,
+        previousResults: {
+          agentName: "Reviewer+Security",
+          success: true,
+          data: {
+            findings: [...reviewResult.findings, ...securityResult.findings.map(f => ({
+              file: f.file, line: f.line, severity: f.severity === "high" ? "critical" as const : f.severity === "low" ? "info" as const : f.severity as "critical" | "warning" | "info",
+              category: "security" as const, title: f.title, description: f.description, suggestion: f.remediation,
+            }))],
+            summary: `${reviewResult.summary} ${securityResult.summary}`,
+          },
+          rawResponse: "",
+          tokensUsed: { input: 0, output: 0 },
+        },
+      }, onToken);
+      coderResult = coderRaw.data as CoderResult;
+      this.costTracker.track("Coder", coderRaw.tokensUsed);
+      if (options.verbose) { console.error(""); log.verbose(`Coder: ${coderRaw.tokensUsed.input} in / ${coderRaw.tokensUsed.output} out`); }
+    }
+
+    // 5. Tester (optional)
+    let testResult: TestResult | undefined;
+    if (!skip.has("test")) {
+      log.step("🧪 Tester agent generating tests...");
+      const tester = new TesterAgent(this.llmClient, options.framework ?? "vitest");
+      const r = await tester.execute(context, onToken);
+      testResult = r.data as TestResult;
+      this.costTracker.track("Tester", r.tokensUsed);
+      if (options.verbose) { console.error(""); log.verbose(`Tester: ${r.tokensUsed.input} in / ${r.tokensUsed.output} out`); }
+    }
+
+    // 6. Docs (optional)
+    let docsResult: DocsResult | undefined;
+    if (!skip.has("docs")) {
+      log.step("📝 Docs agent generating documentation...");
+      const docs = new DocsAgent(this.llmClient);
+      const r = await docs.execute(context, onToken);
+      docsResult = r.data as DocsResult;
+      this.costTracker.track("Docs", r.tokensUsed);
+      if (options.verbose) { console.error(""); log.verbose(`Docs: ${r.tokensUsed.input} in / ${r.tokensUsed.output} out`); }
+    }
+
+    // Build audit result
+    const totalFindings = reviewResult.findings.length + securityResult.findings.length;
+    const totalPatches = coderResult.improvedFiles.reduce((sum, f) => sum + f.patches.length, 0);
+
+    const auditResult: AuditResult = {
+      plan: planResult,
+      review: reviewResult,
+      security: securityResult,
+      coder: coderResult,
+      tests: testResult,
+      docs: docsResult,
+      totalFindings,
+      totalPatches,
+      riskScore: securityResult.riskScore,
+      summary: `${totalFindings} findings, ${totalPatches} patches, ${testResult?.testFiles.length ?? 0} test files, ${docsResult?.docs.length ?? 0} docs`,
+    };
+
+    if (options.json) {
+      console.log(formatJson(auditResult));
+    } else {
+      // Import and use audit formatter
+      const { formatAuditResult } = await import("../utils/formatter.js");
+      console.log(formatAuditResult(auditResult));
+    }
+
+    // Apply changes if --write
+    if (options.write) {
+      // Apply patches
+      for (const file of coderResult.improvedFiles) {
+        const absPath = resolve(file.path);
+        if (options.backup) {
+          copyFileSync(absPath, absPath + ".bak");
+        }
+        let content = readFileSync(absPath, "utf-8");
+        let applied = 0;
+        for (const patch of file.patches) {
+          if (content.includes(patch.find)) {
+            content = content.replace(patch.find, patch.replace);
+            applied++;
+          }
+        }
+        if (applied > 0) {
+          writeFileSync(absPath, content, "utf-8");
+          log.success(`Patched ${file.path} (${applied}/${file.patches.length})`);
+        }
+      }
+      // Write tests
+      if (testResult) {
+        for (const file of testResult.testFiles) {
+          writeFileSync(resolve(file.path), file.content, "utf-8");
+          log.success(`Created ${file.path}`);
+        }
+      }
+      // Write docs
+      if (docsResult) {
+        for (const doc of docsResult.docs) {
+          const absPath = resolve(doc.file);
+          if (options.backup) copyFileSync(absPath, absPath + ".bak");
+          writeFileSync(absPath, doc.content, "utf-8");
+          log.success(`Documented ${doc.file}`);
+        }
+      }
+    } else if (totalPatches > 0 || (testResult?.testFiles.length ?? 0) > 0) {
+      log.info("Dry run — use --write to apply all changes to disk.");
+    }
+
+    this.printCost(options.json);
+    return auditResult;
   }
 }

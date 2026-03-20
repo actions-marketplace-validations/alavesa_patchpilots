@@ -240,7 +240,7 @@ The LLM client uses typed Anthropic SDK exceptions:
 - [x] **Security agent** — OWASP Top 10, secrets detection, input validation, auth pattern analysis
 - [ ] **Parallel file review** — review files in batches instead of one giant prompt
 - [ ] **GitHub Action** — auto-review PRs and post findings as comments
-- [ ] **`patchpilots audit`** — full pipeline: plan → review → improve → test → docs in one command
+- [x] **`patchpilots audit`** — full pipeline: plan → review → security → improve → test → docs in one command
 - [ ] **Smart model routing** — Haiku for Docs/Tester, Sonnet for Reviewer/Coder
 - [ ] **Designer agent** — generate CSS, design tokens, and component markup
 
