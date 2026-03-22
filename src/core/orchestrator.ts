@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync, copyFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { execSync } from "node:child_process";
 import { LLMClient } from "./llm-client.js";
 import { ReviewerAgent } from "../agents/reviewer.js";
 import { CoderAgent } from "../agents/coder.js";
@@ -57,6 +58,44 @@ export class Orchestrator {
     };
   }
 
+  /**
+   * Run local static analysis (tsc --noEmit) before AI agents.
+   * Returns findings for any TypeScript errors found — these are
+   * free to detect and don't need AI.
+   */
+  private runTypeScriptCheck(targetPath: string): ReviewResult["findings"] {
+    const absPath = resolve(targetPath);
+    try {
+      execSync("npx tsc --noEmit 2>&1", { cwd: absPath, encoding: "utf-8", timeout: 30000 });
+      return [];
+    } catch (err: unknown) {
+      const output = (err as { stdout?: string }).stdout ?? "";
+      if (!output.trim()) return [];
+
+      const findings: ReviewResult["findings"] = [];
+      const lines = output.split("\n").filter(l => l.includes("error TS"));
+
+      for (const line of lines) {
+        // Parse: src/file.tsx(10,5): error TS6133: 'X' is declared but its value is never read.
+        const match = line.match(/^(.+?)\((\d+),\d+\):\s*error\s+(TS\d+):\s*(.+)$/);
+        if (match) {
+          const [, file, lineNum, code, message] = match;
+          findings.push({
+            file,
+            line: parseInt(lineNum, 10),
+            severity: code === "TS2554" || code === "TS2345" ? "critical" : "warning",
+            category: "bug",
+            title: `TypeScript ${code}: ${message.slice(0, 80)}`,
+            description: message,
+            suggestion: code === "TS6133" ? "Remove the unused import" : "Fix the type error",
+          });
+        }
+      }
+
+      return findings;
+    }
+  }
+
   async review(targetPath: string, options: OrchestratorOptions = {}): Promise<ReviewResult> {
     log.step("Collecting files...");
     const files = await collectFiles(targetPath, this.config);
@@ -69,6 +108,15 @@ export class Orchestrator {
     log.info(`Found ${files.length} file(s) to review`);
     if (options.verbose) {
       for (const f of files) log.verbose(`  ${f.path}`);
+    }
+
+    // Pre-flight: run TypeScript compiler check (free, instant)
+    log.step("⚡ Running TypeScript pre-check...");
+    const tsFindings = this.runTypeScriptCheck(targetPath);
+    if (tsFindings.length > 0) {
+      log.warn(`Found ${tsFindings.length} TypeScript error(s) before AI review`);
+    } else {
+      log.info("TypeScript check passed");
     }
 
     // Load project memory
@@ -90,6 +138,11 @@ export class Orchestrator {
       onToken,
     );
     const reviewResult = result.data as ReviewResult;
+    // Merge TypeScript pre-check findings into review results
+    if (tsFindings.length > 0) {
+      reviewResult.findings = [...tsFindings, ...reviewResult.findings];
+      reviewResult.summary = `TypeScript: ${tsFindings.length} error(s). ${reviewResult.summary}`;
+    }
     this.costTracker.track("Reviewer", result.tokensUsed);
 
     if (options.verbose) {
@@ -399,6 +452,15 @@ export class Orchestrator {
   }
 
   async audit(targetPath: string, options: OrchestratorOptions = {}): Promise<AuditResult> {
+    // Pre-flight: TypeScript check
+    log.step("⚡ Running TypeScript pre-check...");
+    const tsFindings = this.runTypeScriptCheck(targetPath);
+    if (tsFindings.length > 0) {
+      log.warn(`Found ${tsFindings.length} TypeScript error(s) before AI audit`);
+    } else {
+      log.info("TypeScript check passed");
+    }
+
     const skip = new Set(options.skip ?? []);
     const files = await collectFiles(targetPath, this.config);
 
@@ -436,6 +498,11 @@ export class Orchestrator {
       onToken,
     );
     const reviewResult = reviewRaw.data as ReviewResult;
+    // Merge TypeScript pre-check findings into audit review results
+    if (tsFindings.length > 0) {
+      reviewResult.findings = [...tsFindings, ...reviewResult.findings];
+      reviewResult.summary = `TypeScript: ${tsFindings.length} error(s). ${reviewResult.summary}`;
+    }
     this.costTracker.track("Reviewer", reviewRaw.tokensUsed);
     if (options.verbose) { console.error(""); log.verbose(`Reviewer: ${reviewRaw.tokensUsed.input} in / ${reviewRaw.tokensUsed.output} out`); }
 
