@@ -50,10 +50,10 @@ npx patchpilots audit ./src --write
 ```
 
 ```
-🧠 Planner → 🔍 Reviewer → 🔒 Security → ✨ Coder → 🧪 Tester → 📝 Docs
+⚡ TypeScript → 🧠 Planner → 🔍 Reviewer → 🔒 Security → ✨ Coder → 🧪 Tester → 📝 Docs
 ```
 
-One command gives you: an implementation plan, code review, security audit, auto-fixes, unit tests, and documentation. Skip what you don't need:
+One command gives you: TypeScript pre-check (free), implementation plan, code review, security audit, auto-fixes, unit tests, and documentation. Skip what you don't need:
 
 ```bash
 npx patchpilots audit ./src --skip plan,docs --write
@@ -97,7 +97,9 @@ npx patchpilots plan ./src --task "add authentication"
 
 ### `patchpilots audit <path>`
 
-Runs all agents in sequence: plan → review → security → improve → test → docs.
+Runs all agents in sequence: **TypeScript pre-check** → plan → review → security → improve → test → docs.
+
+Before any AI agent runs, PatchPilots executes `tsc --noEmit` to catch TypeScript errors instantly — unused imports, type mismatches, missing arguments. These findings are free (no API tokens) and get merged into the review results.
 
 | Option | Description |
 |--------|-------------|
@@ -112,7 +114,7 @@ Runs all agents in sequence: plan → review → security → improve → test �
 
 ### `patchpilots review <path>`
 
-Analyzes your code and reports findings grouped by file, color-coded by severity.
+Runs a TypeScript pre-check, then analyzes your code with AI. Findings grouped by file, color-coded by severity.
 
 | Option | Description |
 |--------|-------------|
