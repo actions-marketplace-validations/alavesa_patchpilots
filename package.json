@@ -10,6 +10,8 @@
   "types": "./dist/src/index.d.ts",
   "files": [
     "dist",
+    "action",
+    "action.yml",
     "README.md",
     "LICENSE"
   ],

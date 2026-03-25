@@ -262,6 +262,43 @@ Config resolution order: CLI flags > project `.patchpilots.json` > global `~/.pa
 
 TypeScript, JavaScript, JSX/TSX, Python, Go, Rust, Java, Ruby, PHP, C/C++, C#, Swift, Kotlin, HTML, CSS, SCSS, Vue, Svelte.
 
+## GitHub Action
+
+Auto-review every PR with one workflow file:
+
+```yaml
+# .github/workflows/patchpilots.yml
+name: PatchPilots Review
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: alavesa/patchpilots@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          path: './src'
+```
+
+The action posts findings as a PR comment (updated on each push, no spam). Critical findings fail the check by default.
+
+| Input | Default | Description |
+|-------|---------|-------------|
+| `anthropic_api_key` | (required) | Your Anthropic API key |
+| `path` | `./src` | Path to review |
+| `model` | `claude-sonnet-4-6` | Claude model to use |
+| `skip` | | Agents to skip (e.g. `plan,test,docs`) |
+| `severity` | `info` | Minimum severity to report |
+| `fail_on_critical` | `true` | Fail the check on critical findings |
+
 ## Powered by Claude API
 
 - **Structured outputs** — guaranteed schema compliance via JSON schema enforcement
@@ -300,7 +337,7 @@ Adding a new agent is one file + three methods.
 - [x] 18 file types supported
 
 ### Next up
-- [ ] **GitHub Action** — auto-review PRs and post findings as comments
+- [x] **GitHub Action** — auto-review PRs and post findings as comments
 - [ ] **Parallel file review** — review in batches instead of one giant prompt
 - [ ] **Smart model routing** — Haiku for Docs/Tester, Sonnet for Reviewer/Coder
 - [x] **Custom agents** — define your own agents via `.patchpilots.json`

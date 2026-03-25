@@ -1,0 +1,61 @@
+name: 'PatchPilots Code Review'
+description: 'AI-powered code review with 7 specialized agents — review, security, improve, test, docs in one command'
+author: 'Piia Alavesa'
+
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  anthropic_api_key:
+    description: 'Anthropic API key'
+    required: true
+  path:
+    description: 'Path to review (relative to repo root)'
+    required: false
+    default: './src'
+  model:
+    description: 'Claude model to use'
+    required: false
+    default: 'claude-sonnet-4-6'
+  skip:
+    description: 'Agents to skip (comma-separated: plan,test,docs)'
+    required: false
+    default: ''
+  severity:
+    description: 'Minimum severity to report (critical, warning, info)'
+    required: false
+    default: 'info'
+  fail_on_critical:
+    description: 'Fail the check if critical findings exist'
+    required: false
+    default: 'true'
+
+outputs:
+  total_findings:
+    description: 'Total number of findings'
+  total_patches:
+    description: 'Total number of suggested patches'
+  risk_score:
+    description: 'Overall risk score (critical, high, medium, low, none)'
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    - name: Install PatchPilots
+      run: npm install -g patchpilots
+      shell: bash
+    - name: Run audit and post results
+      run: bash ${{ github.action_path }}/action/run.sh
+      shell: bash
+      env:
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key }}
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_MODEL: ${{ inputs.model }}
+        INPUT_SKIP: ${{ inputs.skip }}
+        INPUT_SEVERITY: ${{ inputs.severity }}
+        INPUT_FAIL_ON_CRITICAL: ${{ inputs.fail_on_critical }}
+        GITHUB_TOKEN: ${{ github.token }}
