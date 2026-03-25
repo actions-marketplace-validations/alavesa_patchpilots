@@ -6,11 +6,11 @@
 A team of AI agents that reviews and improves your code automatically.
 
 ```
-     ○      ○      ○      ○      ○      ○      ○
-    /|\    /|\    /|\    /|\    /|\    /|\    /|\
-    / \    / \    / \    / \    / \    / \    / \
-     🧠      🔍      ✨      🧪      📝      🔒      🎯
-  Planner Reviewer  Coder   Tester   Docs  Security Orchestrator
+     ○      ○      ○      ○      ○      ○      ○      ○
+    /|\    /|\    /|\    /|\    /|\    /|\    /|\    /|\
+    / \    / \    / \    / \    / \    / \    / \    / \
+     🧠      🔍      ✨      🧪      📝      🔒      🎨      🎯
+  Planner Reviewer  Coder   Tester   Docs  Security Designer Orchestrator
 
     ____        __       __    ____  _ __      __
    / __ \____ _/ /______/ /_  / __ \(_) /___  / /______
@@ -18,14 +18,14 @@ A team of AI agents that reviews and improves your code automatically.
  / ____/ /_/ / /_/ /__/ / / / ____/ / / /_/ / /_(__  )
 /_/    \__,_/\__/\___/_/ /_/_/   /_/_/\____/\__/____/
 
-     ○      ○      ○      ○      ○      ○      ○
-    /|\    /|\    /|\    /|\    /|\    /|\    /|\
-    / \    / \    / \    / \    / \    / \    / \
+     ○      ○      ○      ○      ○      ○      ○      ○
+    /|\    /|\    /|\    /|\    /|\    /|\    /|\    /|\
+    / \    / \    / \    / \    / \    / \    / \    / \
 
-    Your code crew is ready. One dev. Seven agents. Zero bugs.
+    Your code crew is ready. One dev. Eight agents. Zero bugs.
 ```
 
-**One dev. Seven AI agents. Zero excuses.**
+**One dev. Eight AI agents. Zero excuses.**
 
 Built for solo developers and hobby projects — when you don't have a team to review your PRs, PatchPilots is your crew.
 
@@ -53,17 +53,17 @@ All three use the same package. The CLI runs locally, the Action runs on GitHub'
 
 ## The Killer Feature
 
-**`patchpilots audit`** — run all 7 agents in one command. No other tool does this.
+**`patchpilots audit`** — run all 8 agents in one command. No other tool does this.
 
 ```bash
 npx patchpilots audit ./src --write
 ```
 
 ```
-⚡ TypeScript → 🧠 Planner → 🔍 Reviewer → 🔒 Security → ✨ Coder → 🧪 Tester → 📝 Docs
+⚡ TypeScript → 🧠 Planner → 🔍 Reviewer → 🔒 Security → 🎨 Designer → ✨ Coder → 🧪 Tester → 📝 Docs
 ```
 
-One command gives you: TypeScript pre-check (free), implementation plan, code review, security audit, auto-fixes, unit tests, and documentation. Skip what you don't need:
+One command gives you: TypeScript pre-check (free), implementation plan, code review, security audit, design & accessibility audit, auto-fixes, unit tests, and documentation. Skip what you don't need:
 
 ```bash
 npx patchpilots audit ./src --skip plan,docs --write
@@ -80,6 +80,7 @@ npx patchpilots audit ./src --skip plan,docs --write
 | 🧪 Tester | `patchpilots test` | Generates unit tests for your source files |
 | 📝 Docs | `patchpilots docs` | Generates JSDoc/TSDoc documentation |
 | 🔒 Security | `patchpilots security` | OWASP Top 10 audit, secrets detection, auth analysis |
+| 🎨 Designer | `patchpilots designer` | WCAG 2.1 AA accessibility, design tokens, CSS consistency |
 
 ## Quick start
 
@@ -97,6 +98,7 @@ npx patchpilots audit ./src --write
 # Or run individual agents:
 npx patchpilots review ./src
 npx patchpilots security ./src
+npx patchpilots designer ./src
 npx patchpilots improve ./src --write
 npx patchpilots test ./src --write
 npx patchpilots docs ./src --write
@@ -107,7 +109,7 @@ npx patchpilots plan ./src --task "add authentication"
 
 ### `patchpilots audit <path>`
 
-Runs all agents in sequence: **TypeScript pre-check** → plan → review → security → improve → test → docs.
+Runs all agents in sequence: **TypeScript pre-check** → plan → review → security → designer → improve → test → docs.
 
 Before any AI agent runs, PatchPilots executes `tsc --noEmit` to catch TypeScript errors instantly — unused imports, type mismatches, missing arguments. These findings are free (no API tokens) and get merged into the review results.
 
@@ -174,6 +176,16 @@ Generates documentation for source files.
 ### `patchpilots security <path>`
 
 Runs a security audit focused on OWASP Top 10, secrets detection, and auth patterns.
+
+| Option | Description |
+|--------|-------------|
+| `--severity <level>` | Minimum severity: `critical`, `high`, `medium`, `low` |
+| `--json` | Output raw JSON |
+| `--verbose` | Show token usage and timing |
+
+### `patchpilots designer <path>`
+
+Audits accessibility (WCAG 2.1 AA), design tokens, CSS consistency, and component markup.
 
 | Option | Description |
 |--------|-------------|
@@ -335,7 +347,7 @@ Adding a new agent is one file + three methods.
 ## Roadmap
 
 ### Done
-- [x] 7 AI agents: Planner, Reviewer, Coder, Tester, Docs, Security, Orchestrator
+- [x] 8 AI agents: Planner, Reviewer, Coder, Tester, Docs, Security, Designer, Orchestrator
 - [x] `patchpilots audit` — full pipeline in one command
 - [x] Structured outputs, adaptive thinking, streaming
 - [x] Prompt caching + cost tracking
@@ -351,7 +363,7 @@ Adding a new agent is one file + three methods.
 - [ ] **Parallel file review** — review in batches instead of one giant prompt
 - [ ] **Smart model routing** — Haiku for Docs/Tester, Sonnet for Reviewer/Coder
 - [x] **Custom agents** — define your own agents via `.patchpilots.json`
-- [ ] **Designer agent** — generate CSS, design tokens, and component markup
+- [x] **Designer agent** — WCAG 2.1 AA accessibility, design tokens, CSS consistency, component markup
 
 ## License
 

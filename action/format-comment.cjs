@@ -192,6 +192,39 @@ function formatPatches(coder) {
   return lines.join("\n");
 }
 
+function formatDesigner(designer) {
+  if (!designer || !designer.findings || designer.findings.length === 0) {
+    return "## \uD83C\uDFA8 Design & Accessibility\n\n\u2705 No design or accessibility issues found.\n\n";
+  }
+
+  const lines = [];
+  lines.push(
+    `## \uD83C\uDFA8 Design & Accessibility (${designer.findings.length} findings)`
+  );
+  lines.push("");
+  lines.push("| Severity | File | Category | Finding | Remediation |");
+  lines.push("|----------|------|----------|---------|-------------|");
+
+  const shown = designer.findings.slice(0, MAX_FINDINGS);
+  for (const f of shown) {
+    const loc = f.line ? `\`${f.file}:${f.line}\`` : `\`${f.file}\``;
+    const cat = f.wcagRef ? `${f.category} (${f.wcagRef})` : f.category;
+    lines.push(
+      `| ${severityEmoji(f.severity)} ${f.severity} | ${loc} | ${escapeMarkdown(cat)} | ${escapeMarkdown(f.title)} | ${escapeMarkdown(truncate(f.remediation, 100))} |`
+    );
+  }
+
+  if (designer.findings.length > MAX_FINDINGS) {
+    lines.push("");
+    lines.push(
+      `*... and ${designer.findings.length - MAX_FINDINGS} more findings*`
+    );
+  }
+
+  lines.push("");
+  return lines.join("\n");
+}
+
 function formatTests(tests) {
   if (!tests || !tests.testFiles || tests.testFiles.length === 0) return "";
   const totalTests = tests.testFiles.reduce((s, f) => s + f.testCount, 0);
@@ -225,6 +258,7 @@ function formatComment(result) {
     formatPlan(result.plan),
     formatReview(result.review),
     formatSecurity(result.security),
+    formatDesigner(result.designer),
     formatPatches(result.coder),
     formatTests(result.tests),
     formatDocs(result.docs),

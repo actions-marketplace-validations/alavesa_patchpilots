@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import type { ReviewResult, ReviewFinding, CoderResult, TestResult, PlanResult, DocsResult, SecurityResult, AuditResult, Severity } from "../types/index.js";
+import type { ReviewResult, ReviewFinding, CoderResult, TestResult, PlanResult, DocsResult, SecurityResult, DesignerResult, AuditResult, Severity } from "../types/index.js";
 
 const SEVERITY_COLORS: Record<Severity, (text: string) => string> = {
   critical: chalk.red.bold,
@@ -302,6 +302,67 @@ export function formatSecurityResult(result: SecurityResult): string {
   return lines.join("\n");
 }
 
+const DESIGNER_CATEGORY_ICONS: Record<string, string> = {
+  accessibility: "♿",
+  consistency: "📐",
+  tokens: "🎨",
+  markup: "🏗️",
+};
+
+export function formatDesignerResult(result: DesignerResult): string {
+  const lines: string[] = [];
+
+  lines.push("");
+  lines.push(chalk.bold.underline("Design & Accessibility Audit"));
+  lines.push("");
+
+  if (result.findings.length === 0) {
+    lines.push(chalk.green("  No design or accessibility issues found."));
+    lines.push("");
+    return lines.join("\n");
+  }
+
+  // Group by file
+  const byFile = new Map<string, typeof result.findings>();
+  for (const finding of result.findings) {
+    const existing = byFile.get(finding.file) ?? [];
+    existing.push(finding);
+    byFile.set(finding.file, existing);
+  }
+
+  for (const [file, findings] of byFile) {
+    lines.push(chalk.bold(`  🎨 ${file}`));
+    for (const f of findings) {
+      const color = SEC_SEVERITY_COLORS[f.severity] ?? chalk.white;
+      const icon = SEC_SEVERITY_ICONS[f.severity] ?? "⚪";
+      const lineRef = f.line ? chalk.gray(`:${f.line}`) : "";
+      const wcag = f.wcagRef ? chalk.gray(` (${f.wcagRef})`) : "";
+      const catIcon = DESIGNER_CATEGORY_ICONS[f.category] ?? "";
+      lines.push(`    ${icon} ${color(f.title)}${lineRef} ${chalk.gray(`[${catIcon} ${f.category}]`)}${wcag}`);
+      lines.push(`       ${f.description}`);
+      lines.push(`       ${chalk.green("Fix:")} ${f.remediation}`);
+      lines.push("");
+    }
+  }
+
+  // Counts
+  const counts: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 };
+  for (const f of result.findings) counts[f.severity]++;
+
+  const healthColor = RISK_COLORS[result.designHealthScore] ?? chalk.white;
+  lines.push(chalk.bold("  Design health: ") + healthColor(result.designHealthScore.toUpperCase()));
+  lines.push(chalk.bold("  Findings: ") + [
+    counts.critical > 0 ? chalk.red(`${counts.critical} critical`) : null,
+    counts.high > 0 ? chalk.red(`${counts.high} high`) : null,
+    counts.medium > 0 ? chalk.yellow(`${counts.medium} medium`) : null,
+    counts.low > 0 ? chalk.blue(`${counts.low} low`) : null,
+  ].filter(Boolean).join(", "));
+  lines.push(`  ${chalk.gray(result.summary)}`);
+  lines.push("");
+
+  return lines.join("\n");
+}
+
 export function formatAuditResult(result: AuditResult): string {
   const lines: string[] = [];
   const divider = chalk.gray("═".repeat(50));
@@ -352,6 +413,27 @@ export function formatAuditResult(result: AuditResult): string {
       sc.medium > 0 ? chalk.yellow(`${sc.medium} medium`) : null,
       sc.low > 0 ? chalk.blue(`${sc.low} low`) : null,
     ].filter(Boolean).join(", "));
+  }
+
+  // Designer
+  if (result.designer) {
+    lines.push("");
+    lines.push(chalk.bold("  🎨 Design & Accessibility"));
+    const healthColor = result.designer.designHealthScore === "none" ? chalk.green
+      : result.designer.designHealthScore === "low" ? chalk.blue
+      : result.designer.designHealthScore === "medium" ? chalk.yellow
+      : chalk.red;
+    lines.push(`     Design health: ${healthColor(result.designer.designHealthScore.toUpperCase())}`);
+    if (result.designer.findings.length > 0) {
+      const dc: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 };
+      for (const f of result.designer.findings) dc[f.severity]++;
+      lines.push("     " + [
+        dc.critical > 0 ? chalk.red(`${dc.critical} critical`) : null,
+        dc.high > 0 ? chalk.red(`${dc.high} high`) : null,
+        dc.medium > 0 ? chalk.yellow(`${dc.medium} medium`) : null,
+        dc.low > 0 ? chalk.blue(`${dc.low} low`) : null,
+      ].filter(Boolean).join(", "));
+    }
   }
 
   // Coder

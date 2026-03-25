@@ -101,10 +101,30 @@ export interface SecurityResult {
   summary: string;
 }
 
+export type DesignerCategory = "accessibility" | "consistency" | "tokens" | "markup";
+
+export interface DesignerFinding {
+  file: string;
+  line?: number;
+  severity: "critical" | "high" | "medium" | "low";
+  category: DesignerCategory;
+  wcagRef?: string;
+  title: string;
+  description: string;
+  remediation: string;
+}
+
+export interface DesignerResult {
+  findings: DesignerFinding[];
+  designHealthScore: "critical" | "high" | "medium" | "low" | "none";
+  summary: string;
+}
+
 export interface AuditResult {
   plan?: PlanResult;
   review: ReviewResult;
   security: SecurityResult;
+  designer?: DesignerResult;
   coder: CoderResult;
   tests?: TestResult;
   docs?: DocsResult;

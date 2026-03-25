@@ -8,14 +8,15 @@ import { TesterAgent } from "../agents/tester.js";
 import { PlannerAgent } from "../agents/planner.js";
 import { DocsAgent } from "../agents/docs.js";
 import { SecurityAgent } from "../agents/security.js";
+import { DesignerAgent } from "../agents/designer.js";
 import { CustomAgent } from "../agents/custom.js";
 import { collectFiles } from "../utils/files.js";
-import { formatReviewResult, formatCoderResult, formatTestResult, formatPlanResult, formatDocsResult, formatSecurityResult, formatJson } from "../utils/formatter.js";
+import { formatReviewResult, formatCoderResult, formatTestResult, formatPlanResult, formatDocsResult, formatSecurityResult, formatDesignerResult, formatJson } from "../utils/formatter.js";
 import { log } from "../utils/logger.js";
 import { CostTracker } from "../utils/cost.js";
 import { loadMemory, saveMemory, updateMemory, buildMemoryContext, formatMemoryStatus } from "../utils/memory.js";
 import type { PatchPilotsConfig } from "../types/index.js";
-import type { ReviewResult, CoderResult, TestResult, PlanResult, DocsResult, SecurityResult, AuditResult } from "../types/review.js";
+import type { ReviewResult, CoderResult, TestResult, PlanResult, DocsResult, SecurityResult, DesignerResult, AuditResult } from "../types/review.js";
 
 export interface OrchestratorOptions {
   json?: boolean;
@@ -451,6 +452,70 @@ export class Orchestrator {
     return securityResult;
   }
 
+  async designAudit(targetPath: string, options: OrchestratorOptions = {}): Promise<DesignerResult> {
+    log.step("Collecting files...");
+    const files = await collectFiles(targetPath, this.config);
+
+    if (files.length === 0) {
+      log.warn("No matching files found.");
+      return { findings: [], designHealthScore: "none", summary: "No files to audit." };
+    }
+
+    log.info(`Found ${files.length} file(s) to audit`);
+    if (options.verbose) {
+      for (const f of files) log.verbose(`  ${f.path}`);
+    }
+
+    // Load project memory
+    const memory = loadMemory(targetPath);
+    const memoryContext = buildMemoryContext(memory);
+
+    log.step("🎨 Designer agent auditing code...");
+    const onToken = this.createStreamCallback(options.verbose ?? false);
+    const designer = new DesignerAgent(this.llmClient);
+    const result = await designer.executeBatched(
+      { files, config: this.config, memoryContext },
+      (results) => {
+        const allFindings = results.flatMap(r => r.findings);
+        const order = ["none", "low", "medium", "high", "critical"];
+        const worst = results.reduce((w, r) => order.indexOf(r.designHealthScore) > order.indexOf(w) ? r.designHealthScore : w, "none" as DesignerResult["designHealthScore"]);
+        return { findings: allFindings, designHealthScore: worst, summary: results.map(r => r.summary).join(" ") };
+      },
+      onToken,
+    );
+    const designerResult = result.data as DesignerResult;
+    this.costTracker.track("Designer", result.tokensUsed);
+
+    if (options.verbose) {
+      console.error("");
+      log.verbose(`Tokens used: ${result.tokensUsed.input} in / ${result.tokensUsed.output} out`);
+    }
+
+    // Update and save memory
+    const updatedMemory = updateMemory(memory, designerResult.findings.map(f => ({
+      file: f.file, title: f.title, severity: f.severity, category: f.category,
+    })));
+    saveMemory(targetPath, updatedMemory);
+
+    // Filter by severity if specified
+    if (options.severity) {
+      const levels: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
+      const minLevel = levels[options.severity] ?? 1;
+      designerResult.findings = designerResult.findings.filter(
+        (f) => (levels[f.severity] ?? 1) >= minLevel
+      );
+    }
+
+    if (options.json) {
+      console.log(formatJson(designerResult));
+    } else {
+      console.log(formatDesignerResult(designerResult));
+    }
+
+    this.printCost(options.json);
+    return designerResult;
+  }
+
   async audit(targetPath: string, options: OrchestratorOptions = {}): Promise<AuditResult> {
     // Pre-flight: TypeScript check
     log.step("⚡ Running TypeScript pre-check...");
@@ -522,7 +587,26 @@ export class Orchestrator {
     this.costTracker.track("Security", securityRaw.tokensUsed);
     if (options.verbose) { console.error(""); log.verbose(`Security: ${securityRaw.tokensUsed.input} in / ${securityRaw.tokensUsed.output} out`); }
 
-    // 4. Coder (batched, fix review + security findings)
+    // 4. Designer (optional, batched)
+    let designerResult: DesignerResult | undefined;
+    if (!skip.has("designer")) {
+      log.step("🎨 Designer agent auditing code...");
+      const designer = new DesignerAgent(this.llmClient);
+      const designerRaw = await designer.executeBatched(
+        context,
+        (results) => {
+          const order = ["none", "low", "medium", "high", "critical"];
+          const worst = results.reduce((w, r) => order.indexOf(r.designHealthScore) > order.indexOf(w) ? r.designHealthScore : w, "none" as DesignerResult["designHealthScore"]);
+          return { findings: results.flatMap(r => r.findings), designHealthScore: worst, summary: results.map(r => r.summary).join(" ") };
+        },
+        onToken,
+      );
+      designerResult = designerRaw.data as DesignerResult;
+      this.costTracker.track("Designer", designerRaw.tokensUsed);
+      if (options.verbose) { console.error(""); log.verbose(`Designer: ${designerRaw.tokensUsed.input} in / ${designerRaw.tokensUsed.output} out`); }
+    }
+
+    // 5. Coder (batched, fix review + security findings)
     let coderResult: CoderResult = { improvedFiles: [], summary: "No findings to fix." };
     if (reviewResult.findings.length > 0 || securityResult.findings.length > 0) {
       log.step("✨ Coder agent generating patches...");
@@ -552,7 +636,7 @@ export class Orchestrator {
       if (options.verbose) { console.error(""); log.verbose(`Coder: ${coderRaw.tokensUsed.input} in / ${coderRaw.tokensUsed.output} out`); }
     }
 
-    // 5. Tester (optional, batched)
+    // 6. Tester (optional, batched)
     let testResult: TestResult | undefined;
     if (!skip.has("test")) {
       log.step("🧪 Tester agent generating tests...");
@@ -567,7 +651,7 @@ export class Orchestrator {
       if (options.verbose) { console.error(""); log.verbose(`Tester: ${r.tokensUsed.input} in / ${r.tokensUsed.output} out`); }
     }
 
-    // 6. Docs (optional, batched)
+    // 7. Docs (optional, batched)
     let docsResult: DocsResult | undefined;
     if (!skip.has("docs")) {
       log.step("📝 Docs agent generating documentation...");
@@ -583,13 +667,14 @@ export class Orchestrator {
     }
 
     // Build audit result
-    const totalFindings = reviewResult.findings.length + securityResult.findings.length;
+    const totalFindings = reviewResult.findings.length + securityResult.findings.length + (designerResult?.findings.length ?? 0);
     const totalPatches = coderResult.improvedFiles.reduce((sum, f) => sum + f.patches.length, 0);
 
     const auditResult: AuditResult = {
       plan: planResult,
       review: reviewResult,
       security: securityResult,
+      designer: designerResult,
       coder: coderResult,
       tests: testResult,
       docs: docsResult,

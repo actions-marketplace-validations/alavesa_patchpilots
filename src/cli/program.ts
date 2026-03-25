@@ -5,6 +5,7 @@ import { registerTestCommand } from "./commands/test.js";
 import { registerPlanCommand } from "./commands/plan.js";
 import { registerDocsCommand } from "./commands/docs.js";
 import { registerSecurityCommand } from "./commands/security.js";
+import { registerDesignerCommand } from "./commands/designer.js";
 import { registerAuditCommand } from "./commands/audit.js";
 import { registerCustomCommand } from "./commands/custom.js";
 import { registerMemoryCommand } from "./commands/memory.js";
@@ -23,6 +24,7 @@ export function createProgram(): Command {
   registerPlanCommand(program);
   registerDocsCommand(program);
   registerSecurityCommand(program);
+  registerDesignerCommand(program);
   registerAuditCommand(program);
   registerCustomCommand(program);
   registerMemoryCommand(program);
