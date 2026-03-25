@@ -14,16 +14,16 @@ const MAX_FINDINGS = 50;
 const MAX_PATCHES = 30;
 
 const SEVERITY_EMOJI = {
-  critical: ":red_circle:",
-  high: ":orange_circle:",
-  warning: ":yellow_circle:",
-  medium: ":yellow_circle:",
-  info: ":blue_circle:",
-  low: ":blue_circle:",
+  critical: "\uD83D\uDD34",
+  high: "\uD83D\uDFE0",
+  warning: "\uD83D\uDFE1",
+  medium: "\uD83D\uDFE1",
+  info: "\uD83D\uDD35",
+  low: "\uD83D\uDD35",
 };
 
 function severityEmoji(severity) {
-  return SEVERITY_EMOJI[severity] || ":white_circle:";
+  return SEVERITY_EMOJI[severity] || "\u26AA";
 }
 
 function escapeMarkdown(text) {
@@ -56,7 +56,7 @@ function formatHeader(result) {
 function formatPlan(plan) {
   if (!plan || !plan.tasks || plan.tasks.length === 0) return "";
   const lines = [];
-  lines.push("## :brain: Plan");
+  lines.push("## \uD83E\uDDE0 Plan");
   lines.push("");
   if (plan.goal) {
     lines.push(`> ${plan.goal}`);
@@ -65,10 +65,10 @@ function formatPlan(plan) {
   for (const task of plan.tasks) {
     const complexity =
       task.estimatedComplexity === "complex"
-        ? ":red_circle:"
+        ? "\uD83D\uDD34"
         : task.estimatedComplexity === "moderate"
-        ? ":yellow_circle:"
-        : ":green_circle:";
+        ? "\uD83D\uDFE1"
+        : "\uD83D\uDFE2";
     lines.push(
       `${task.id}. ${complexity} **${task.title}** \\[${task.priority}\\]`
     );
@@ -80,11 +80,11 @@ function formatPlan(plan) {
 
 function formatReview(review) {
   if (!review || !review.findings || review.findings.length === 0) {
-    return "## :mag: Code Review\n\n:white_check_mark: No issues found.\n\n";
+    return "## \uD83D\uDD0D Code Review\n\n\u2705 No issues found.\n\n";
   }
 
   const lines = [];
-  lines.push(`## :mag: Code Review (${review.findings.length} findings)`);
+  lines.push(`## \uD83D\uDD0D Code Review (${review.findings.length} findings)`);
   lines.push("");
   lines.push("| Severity | File | Finding | Suggestion |");
   lines.push("|----------|------|---------|------------|");
@@ -110,12 +110,12 @@ function formatReview(review) {
 
 function formatSecurity(security) {
   if (!security || !security.findings || security.findings.length === 0) {
-    return "## :lock: Security Audit\n\n:white_check_mark: No security issues found.\n\n";
+    return "## \uD83D\uDD12 Security Audit\n\n\u2705 No security issues found.\n\n";
   }
 
   const lines = [];
   lines.push(
-    `## :lock: Security Audit (${security.findings.length} findings)`
+    `## \uD83D\uDD12 Security Audit (${security.findings.length} findings)`
   );
   lines.push("");
   lines.push("| Severity | File | Category | Finding | Remediation |");
@@ -154,7 +154,7 @@ function formatPatches(coder) {
   let totalPatches = 0;
   for (const f of coder.improvedFiles) totalPatches += f.patches.length;
 
-  lines.push(`## :sparkles: Suggested Improvements (${totalPatches} patches)`);
+  lines.push(`## \u2728 Suggested Improvements (${totalPatches} patches)`);
   lines.push("");
 
   let patchCount = 0;
@@ -195,12 +195,12 @@ function formatPatches(coder) {
 function formatTests(tests) {
   if (!tests || !tests.testFiles || tests.testFiles.length === 0) return "";
   const totalTests = tests.testFiles.reduce((s, f) => s + f.testCount, 0);
-  return `## :test_tube: Tests\n\n${totalTests} tests generated across ${tests.testFiles.length} file(s).\n\n`;
+  return `## \uD83E\uDDEA Tests\n\n${totalTests} tests generated across ${tests.testFiles.length} file(s).\n\n`;
 }
 
 function formatDocs(docs) {
   if (!docs || !docs.docs || docs.docs.length === 0) return "";
-  return `## :memo: Documentation\n\n${docs.docs.length} file(s) documented.\n\n`;
+  return `## \uD83D\uDCDD Documentation\n\n${docs.docs.length} file(s) documented.\n\n`;
 }
 
 function formatFooter(result) {
