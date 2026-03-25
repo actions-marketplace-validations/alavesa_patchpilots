@@ -360,7 +360,7 @@ Adding a new agent is one file + three methods.
 
 ### Next up
 - [x] **GitHub Action** — auto-review PRs and post findings as comments
-- [ ] **Parallel file review** — review in batches instead of one giant prompt
+- [x] **Parallel file review** — review in batches instead of one giant prompt
 - [ ] **Smart model routing** — Haiku for Docs/Tester, Sonnet for Reviewer/Coder
 - [x] **Custom agents** — define your own agents via `.patchpilots.json`
 - [x] **Designer agent** — WCAG 2.1 AA accessibility, design tokens, CSS consistency, component markup
