@@ -14,7 +14,7 @@ echo "Skip: ${INPUT_SKIP:-none}"
 
 # Run patchpilots audit — JSON goes to stdout, logs to stderr
 # shellcheck disable=SC2086
-RESULT=$(patchpilots audit "${INPUT_PATH}" ${FLAGS} 2>&1 | tail -1) || true
+RESULT=$(patchpilots audit "${INPUT_PATH}" ${FLAGS} 2>/dev/null) || true
 
 echo "::endgroup::"
 
@@ -31,7 +31,7 @@ echo "${RESULT}" > /tmp/patchpilots-result.json
 COMMENT=$(node "${GITHUB_ACTION_PATH}/action/format-comment.cjs" /tmp/patchpilots-result.json)
 
 # Post or update PR comment
-PR_NUMBER=$(gh pr view --json number -q '.number' 2>/dev/null || echo "")
+PR_NUMBER=$(jq -r '.pull_request.number // empty' "${GITHUB_EVENT_PATH}" 2>/dev/null || echo "")
 
 if [ -n "${PR_NUMBER}" ]; then
   # Look for existing PatchPilots comment to update (avoid spam)
