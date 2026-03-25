@@ -29,17 +29,27 @@ A team of AI agents that reviews and improves your code automatically.
 
 Built for solo developers and hobby projects — when you don't have a team to review your PRs, PatchPilots is your crew.
 
-## Install
+## Use it 3 ways
 
+### `npx` — no install, one-off
 ```bash
 npx patchpilots audit ./src
 ```
 
-Or install globally:
-
+### Global install — your machine, any project
 ```bash
 npm install -g patchpilots
+patchpilots audit ./src
 ```
+
+### GitHub Action — automatic on every PR
+```yaml
+- uses: alavesa/patchpilots@main
+  with:
+    anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+All three use the same package. The CLI runs locally, the Action runs on GitHub's servers. Same agents, same output.
 
 ## The Killer Feature
 
