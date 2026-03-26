@@ -42,7 +42,7 @@ export class Orchestrator {
 
   private printCost(json?: boolean): void {
     if (!json) {
-      console.log(this.costTracker.formatSummary());
+      console.error(this.costTracker.formatSummary());
     }
   }
 
