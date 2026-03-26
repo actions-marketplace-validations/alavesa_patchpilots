@@ -43,13 +43,18 @@ echo "Path: ${TARGET_PATH}"
 
 # Run patchpilots audit — JSON goes to stdout, logs to stderr
 # shellcheck disable=SC2086
-RESULT=$(patchpilots audit "${TARGET_PATH}" ${FLAGS} 2>/dev/null) || true
+RESULT=$(patchpilots audit "${TARGET_PATH}" ${FLAGS} 2>/tmp/patchpilots-stderr.log) || true
 
 echo "::endgroup::"
 
-# If no output, warn and exit
+# If no output, show stderr for debugging and exit
 if [ -z "${RESULT}" ] || ! echo "${RESULT}" | jq empty 2>/dev/null; then
   echo "::warning::PatchPilots produced no valid JSON output"
+  if [ -f /tmp/patchpilots-stderr.log ]; then
+    echo "::group::PatchPilots stderr output"
+    cat /tmp/patchpilots-stderr.log
+    echo "::endgroup::"
+  fi
   exit 0
 fi
 
