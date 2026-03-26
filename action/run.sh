@@ -58,6 +58,11 @@ if [ -z "${RESULT}" ] || ! echo "${RESULT}" | jq empty 2>/dev/null; then
   exit 0
 fi
 
+# Clean up temp directory paths from changed_only mode
+if [ -n "${TMPDIR:-}" ] && [ "${INPUT_CHANGED_ONLY}" = "true" ]; then
+  RESULT=$(echo "${RESULT}" | sed "s|${TMPDIR}/||g")
+fi
+
 # Save raw JSON
 echo "${RESULT}" > /tmp/patchpilots-result.json
 
