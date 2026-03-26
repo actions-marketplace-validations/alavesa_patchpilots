@@ -377,7 +377,6 @@ Adding a new agent is one file + three methods.
 - [ ] 🧓 **Legacy** — flags patterns that made sense in 2019 but not anymore
 
 **Design systems**
-- [ ] 🎨 **Tokens** — design token usage, flags magic values, hardcoded colors/spacing
 - [ ] 📐 **Consistency** — same pattern implemented 3 different ways across components
 - [ ] 🧩 **API** — component prop naming consistency, missing variants, breaking changes
 
