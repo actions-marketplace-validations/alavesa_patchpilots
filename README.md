@@ -368,10 +368,23 @@ Adding a new agent is one file + three methods.
 - [x] **Designer agent** — WCAG 2.1 AA accessibility, design tokens, CSS consistency, component markup
 
 ### Future agents
-- [ ] 🌍 **i18n agent** — hardcoded strings, RTL issues, locale assumptions
-- [ ] ⚡ **Performance agent** — bundle size, render patterns, lazy loading opportunities
-- [ ] 📊 **Analytics agent** — event tracking coverage, naming consistency, missing flow events
-- [ ] ♻️ **Refactor agent** — duplication detection, abstraction suggestions
+
+**Code quality**
+- [ ] 🌍 **i18n** — hardcoded strings, RTL issues, locale assumptions
+- [ ] ⚡ **Performance** — bundle size, render patterns, lazy loading opportunities
+- [ ] 📊 **Analytics** — event tracking coverage, naming consistency, missing flow events
+- [ ] ♻️ **Refactor** — duplication detection, abstraction suggestions
+- [ ] 🧓 **Legacy** — flags patterns that made sense in 2019 but not anymore
+
+**Design systems**
+- [ ] 🎨 **Tokens** — design token usage, flags magic values, hardcoded colors/spacing
+- [ ] 📐 **Consistency** — same pattern implemented 3 different ways across components
+- [ ] 🧩 **API** — component prop naming consistency, missing variants, breaking changes
+
+**Solo dev tools**
+- [ ] 🚢 **ShipPilot** — "is this actually ready to deploy?" checklist agent
+- [ ] 📣 **Changelog** — auto-generates release notes from diffs
+- [ ] 💸 **CostPilot** — estimates Claude API spend before running the full audit
 
 ## License
 
