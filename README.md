@@ -385,7 +385,7 @@ Adding a new agent is one file + three methods.
 - [ ] 📣 **Changelog** — auto-generates release notes from diffs
 - [ ] 💸 **CostPilot** — estimates Claude API spend before running the full audit
 
-**Platforms**
+### Future platforms
 - [ ] 🖥️ **VS Code extension** — same crew, lives in your editor
 - [ ] 🌐 **Web UI** — drag and drop a repo, get a report. No CLI needed
 
