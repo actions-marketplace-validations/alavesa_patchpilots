@@ -1,5 +1,5 @@
 name: 'PatchPilots Code Review'
-description: 'AI-powered code review with 7 specialized agents — review, security, improve, test, docs in one command'
+description: 'AI-powered code review with 8 specialized agents — review, security, accessibility, improve, test, docs in one command'
 author: 'Piia Alavesa'
 
 branding:
@@ -30,6 +30,10 @@ inputs:
     description: 'Fail the check if critical findings exist'
     required: false
     default: 'true'
+  changed_only:
+    description: 'Only review files changed in the PR (faster, cheaper)'
+    required: false
+    default: 'false'
 
 outputs:
   total_findings:
@@ -58,4 +62,5 @@ runs:
         INPUT_SKIP: ${{ inputs.skip }}
         INPUT_SEVERITY: ${{ inputs.severity }}
         INPUT_FAIL_ON_CRITICAL: ${{ inputs.fail_on_critical }}
+        INPUT_CHANGED_ONLY: ${{ inputs.changed_only }}
         GITHUB_TOKEN: ${{ github.token }}

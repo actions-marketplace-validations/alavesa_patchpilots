@@ -7,14 +7,43 @@ if [ -n "${INPUT_MODEL}" ]; then FLAGS="${FLAGS} --model ${INPUT_MODEL}"; fi
 if [ -n "${INPUT_SKIP}" ]; then FLAGS="${FLAGS} --skip ${INPUT_SKIP}"; fi
 
 echo "::group::Running PatchPilots audit"
-echo "Path: ${INPUT_PATH}"
 echo "Model: ${INPUT_MODEL}"
 echo "Severity: ${INPUT_SEVERITY}"
 echo "Skip: ${INPUT_SKIP:-none}"
+echo "Changed only: ${INPUT_CHANGED_ONLY:-false}"
+
+# Determine target path
+TARGET_PATH="${INPUT_PATH}"
+
+if [ "${INPUT_CHANGED_ONLY}" = "true" ]; then
+  # Get files changed in the PR
+  BASE_SHA=$(jq -r '.pull_request.base.sha // empty' "${GITHUB_EVENT_PATH}" 2>/dev/null || echo "")
+  if [ -n "${BASE_SHA}" ]; then
+    CHANGED_FILES=$(git diff --name-only "${BASE_SHA}"...HEAD -- "${INPUT_PATH}" 2>/dev/null | head -50 || echo "")
+    if [ -n "${CHANGED_FILES}" ]; then
+      # Create a temp directory with symlinks to changed files
+      TMPDIR=$(mktemp -d)
+      while IFS= read -r file; do
+        if [ -f "${file}" ]; then
+          mkdir -p "${TMPDIR}/$(dirname "${file}")"
+          cp "${file}" "${TMPDIR}/${file}"
+        fi
+      done <<< "${CHANGED_FILES}"
+      TARGET_PATH="${TMPDIR}"
+      echo "Reviewing ${CHANGED_FILES_COUNT:-$(echo "${CHANGED_FILES}" | wc -l | tr -d ' ')} changed file(s)"
+    else
+      echo "::warning::No changed files found in ${INPUT_PATH} — reviewing all files"
+    fi
+  else
+    echo "::warning::Could not determine base SHA — reviewing all files"
+  fi
+fi
+
+echo "Path: ${TARGET_PATH}"
 
 # Run patchpilots audit — JSON goes to stdout, logs to stderr
 # shellcheck disable=SC2086
-RESULT=$(patchpilots audit "${INPUT_PATH}" ${FLAGS} 2>/dev/null) || true
+RESULT=$(patchpilots audit "${TARGET_PATH}" ${FLAGS} 2>/dev/null) || true
 
 echo "::endgroup::"
 
