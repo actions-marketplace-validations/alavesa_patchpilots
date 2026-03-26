@@ -367,6 +367,12 @@ Adding a new agent is one file + three methods.
 - [x] **Custom agents** — define your own agents via `.patchpilots.json`
 - [x] **Designer agent** — WCAG 2.1 AA accessibility, design tokens, CSS consistency, component markup
 
+### Future agents
+- [ ] 🌍 **i18n agent** — hardcoded strings, RTL issues, locale assumptions
+- [ ] ⚡ **Performance agent** — bundle size, render patterns, lazy loading opportunities
+- [ ] 📊 **Analytics agent** — event tracking coverage, naming consistency, missing flow events
+- [ ] ♻️ **Refactor agent** — duplication detection, abstraction suggestions
+
 ## License
 
 MIT
