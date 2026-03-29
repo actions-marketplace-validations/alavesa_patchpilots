@@ -2,6 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/patchpilots)](https://www.npmjs.com/package/patchpilots)
 [![license](https://img.shields.io/npm/l/patchpilots)](https://github.com/alavesa/patchpilots/blob/main/LICENSE)
+[![Reviewed by PatchPilots](https://img.shields.io/badge/reviewed%20by-PatchPilots%20🎯-blueviolet)](https://github.com/alavesa/patchpilots)
 
 A team of AI agents that reviews and improves your code automatically.
 
