@@ -9,6 +9,7 @@ import { registerDesignerCommand } from "./commands/designer.js";
 import { registerAuditCommand } from "./commands/audit.js";
 import { registerCustomCommand } from "./commands/custom.js";
 import { registerMemoryCommand } from "./commands/memory.js";
+import { playBanner } from "../utils/banner.js";
 
 export function createProgram(): Command {
   const program = new Command();
@@ -17,6 +18,13 @@ export function createProgram(): Command {
     .name("patchpilots")
     .description("🎯 A team of AI agents that reviews and improves your code")
     .version("0.1.1");
+
+  program
+    .command("banner")
+    .description("Play the startup animation")
+    .action(async () => {
+      await playBanner();
+    });
 
   registerReviewCommand(program);
   registerImproveCommand(program);
