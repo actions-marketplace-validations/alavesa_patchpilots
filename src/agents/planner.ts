@@ -52,10 +52,14 @@ If no specific task is provided, analyze the codebase and suggest improvements, 
   protected buildUserMessage(context: AgentContext): string {
     const parts: string[] = [];
 
-    if (this.taskDescription) {
+    if (this.taskDescription.trim()) {
       parts.push(`## Task to plan\n${this.taskDescription}\n`);
     } else {
       parts.push("## Analyze this codebase and suggest a plan for improvements\n");
+    }
+
+    if (context.memoryContext) {
+      parts.push(context.memoryContext);
     }
 
     parts.push("## Source Files\n");

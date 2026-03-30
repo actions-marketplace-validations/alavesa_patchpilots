@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, statSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { log } from "./logger.js";
 
@@ -23,7 +23,8 @@ export interface ProjectMemory {
 }
 
 function getMemoryPath(targetPath: string): string {
-  return resolve(dirname(resolve(targetPath)), MEMORY_FILE);
+  const abs = resolve(targetPath);
+  return resolve(statSync(abs).isFile() ? dirname(abs) : abs, MEMORY_FILE);
 }
 
 export function loadMemory(targetPath: string): ProjectMemory {
@@ -40,6 +41,7 @@ export function loadMemory(targetPath: string): ProjectMemory {
   try {
     return JSON.parse(readFileSync(memPath, "utf-8"));
   } catch {
+    log.warn('Memory file is corrupt, starting fresh: ' + memPath);
     return {
       projectPath: resolve(targetPath),
       lastRun: new Date().toISOString(),
@@ -59,11 +61,12 @@ export function updateMemory(
   memory: ProjectMemory,
   currentFindings: Array<{ file: string; title: string; severity: string; category?: string }>,
 ): ProjectMemory {
+  const updated = structuredClone(memory);
   const now = new Date().toISOString();
   const currentKeys = new Set(currentFindings.map(f => `${f.file}::${f.title}`));
 
   // Update existing findings
-  for (const existing of memory.findings) {
+  for (const existing of updated.findings) {
     const key = `${existing.file}::${existing.title}`;
     if (currentKeys.has(key)) {
       // Still present — bump occurrence
@@ -77,11 +80,11 @@ export function updateMemory(
   }
 
   // Add new findings
-  const existingKeys = new Set(memory.findings.map(f => `${f.file}::${f.title}`));
+  const existingKeys = new Set(updated.findings.map(f => `${f.file}::${f.title}`));
   for (const finding of currentFindings) {
     const key = `${finding.file}::${finding.title}`;
     if (!existingKeys.has(key)) {
-      memory.findings.push({
+      updated.findings.push({
         file: finding.file,
         title: finding.title,
         severity: finding.severity,
@@ -94,10 +97,10 @@ export function updateMemory(
     }
   }
 
-  memory.lastRun = now;
-  memory.totalRuns++;
+  updated.lastRun = now;
+  updated.totalRuns++;
 
-  return memory;
+  return updated;
 }
 
 export function buildMemoryContext(memory: ProjectMemory): string {

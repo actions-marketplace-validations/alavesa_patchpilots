@@ -130,6 +130,6 @@ export interface AuditResult {
   docs?: DocsResult;
   totalFindings: number;
   totalPatches: number;
-  riskScore: string;
+  riskScore: "critical" | "high" | "medium" | "low" | "none";
   summary: string;
 }

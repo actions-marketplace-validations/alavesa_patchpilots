@@ -86,17 +86,19 @@ export function formatCoderResult(result: CoderResult): string {
     for (const patch of file.patches) {
       lines.push(`    ${chalk.green("→")} ${patch.description}`);
       // Show compact diff for the patch
-      for (const line of patch.find.split("\n").slice(0, 5)) {
+      const findLines = patch.find.split("\n");
+      const replaceLines = patch.replace.split("\n");
+      for (const line of findLines.slice(0, 5)) {
         lines.push(chalk.red(`      - ${line}`));
       }
-      if (patch.find.split("\n").length > 5) {
-        lines.push(chalk.gray(`      ... (${patch.find.split("\n").length - 5} more lines)`));
+      if (findLines.length > 5) {
+        lines.push(chalk.gray(`      ... (${findLines.length - 5} more lines)`));
       }
-      for (const line of patch.replace.split("\n").slice(0, 5)) {
+      for (const line of replaceLines.slice(0, 5)) {
         lines.push(chalk.green(`      + ${line}`));
       }
-      if (patch.replace.split("\n").length > 5) {
-        lines.push(chalk.gray(`      ... (${patch.replace.split("\n").length - 5} more lines)`));
+      if (replaceLines.length > 5) {
+        lines.push(chalk.gray(`      ... (${replaceLines.length - 5} more lines)`));
       }
       lines.push("");
       totalPatches++;
@@ -399,10 +401,7 @@ export function formatAuditResult(result: AuditResult): string {
   // Security
   lines.push("");
   lines.push(chalk.bold("  🔒 Security Audit"));
-  const riskColor = result.security.riskScore === "none" ? chalk.green
-    : result.security.riskScore === "low" ? chalk.blue
-    : result.security.riskScore === "medium" ? chalk.yellow
-    : chalk.red;
+  const riskColor = RISK_COLORS[result.security.riskScore] ?? chalk.white;
   lines.push(`     Risk score: ${riskColor(result.security.riskScore.toUpperCase())}`);
   if (result.security.findings.length > 0) {
     const sc: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 };
@@ -419,10 +418,7 @@ export function formatAuditResult(result: AuditResult): string {
   if (result.designer) {
     lines.push("");
     lines.push(chalk.bold("  🎨 Design & Accessibility"));
-    const healthColor = result.designer.designHealthScore === "none" ? chalk.green
-      : result.designer.designHealthScore === "low" ? chalk.blue
-      : result.designer.designHealthScore === "medium" ? chalk.yellow
-      : chalk.red;
+    const healthColor = RISK_COLORS[result.designer.designHealthScore] ?? chalk.white;
     lines.push(`     Design health: ${healthColor(result.designer.designHealthScore.toUpperCase())}`);
     if (result.designer.findings.length > 0) {
       const dc: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 };
@@ -446,10 +442,10 @@ export function formatAuditResult(result: AuditResult): string {
   }
 
   // Tests
+  const totalTests = result.tests ? result.tests.testFiles.reduce((s, f) => s + f.testCount, 0) : 0;
   if (result.tests) {
     lines.push("");
     lines.push(chalk.bold("  🧪 Tests"));
-    const totalTests = result.tests.testFiles.reduce((s, f) => s + f.testCount, 0);
     lines.push(`     ${chalk.green(`${totalTests} tests`)} generated across ${result.tests.testFiles.length} file(s)`);
   }
 
@@ -465,7 +461,7 @@ export function formatAuditResult(result: AuditResult): string {
   lines.push(thinDivider);
   lines.push(chalk.bold(`  Summary: `) +
     `${result.totalFindings} findings | ${result.totalPatches} patches` +
-    (result.tests ? ` | ${result.tests.testFiles.reduce((s, f) => s + f.testCount, 0)} tests` : "") +
+    (result.tests ? ` | ${totalTests} tests` : "") +
     (result.docs ? ` | ${result.docs.docs.length} docs` : "")
   );
   lines.push(divider);

@@ -51,6 +51,10 @@ If a file is purely types/interfaces with no runtime code, skip it and don't gen
   protected buildUserMessage(context: AgentContext): string {
     const parts = ["Please generate unit tests for the following source files:\n"];
 
+    if (context.memoryContext) {
+      parts.push(context.memoryContext);
+    }
+
     for (const file of context.files) {
       parts.push(`## File: ${file.path} (${file.language})`);
       parts.push("```" + file.language);
