@@ -245,7 +245,7 @@ function formatFooter(result) {
   );
   lines.push("");
   lines.push(
-    `<sub>Add <a href="https://github.com/alavesa/patchpilots"><img src="https://img.shields.io/badge/reviewed%20by-PatchPilots-blue" alt="Reviewed by PatchPilots" /></a> to your README</sub>`
+    `<sub>Add <a href="https://github.com/alavesa/patchpilots"><img src="https://img.shields.io/badge/reviewed%20by-PatchPilots%20🎯-blueviolet" alt="Reviewed by PatchPilots" /></a> to your README</sub>`
   );
   return lines.join("\n");
 }
