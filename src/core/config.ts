@@ -10,6 +10,17 @@ const customAgentSchema = z.object({
   prompt: z.string(),
 });
 
+const modelRoutingSchema = z.object({
+  enabled: z.boolean().optional(),
+  fast: z.string().optional(),
+  standard: z.string().optional(),
+  deep: z.string().optional(),
+  fastMaxLines: z.number().positive().optional(),
+  deepMinLines: z.number().positive().optional(),
+  fastPatterns: z.array(z.string()).optional(),
+  deepPatterns: z.array(z.string()).optional(),
+}).optional();
+
 const configSchema = z.object({
   apiKey: z.string().optional(),
   model: z.string().optional(),
@@ -21,6 +32,7 @@ const configSchema = z.object({
   maxFiles: z.number().positive().optional(),
   batchSize: z.number().positive().optional(),
   customAgents: z.array(customAgentSchema).optional(),
+  modelRouting: modelRoutingSchema,
 });
 
 function findConfigFile(startDir: string): string | null {
@@ -60,6 +72,7 @@ function loadFileConfig(startDir: string): Partial<PatchPilotsConfig> {
 export interface CLIOptions {
   model?: string;
   config?: string;
+  routing?: boolean;
 }
 
 export function loadConfig(targetPath: string, cliOptions: CLIOptions = {}): PatchPilotsConfig {
@@ -80,11 +93,18 @@ export function loadConfig(targetPath: string, cliOptions: CLIOptions = {}): Pat
     );
   }
 
-  return {
+  const merged = {
     ...DEFAULT_CONFIG,
     ...globalConfig,
     ...fileConfig,
     ...(cliOptions.model ? { model: cliOptions.model } : {}),
     apiKey,
   };
+
+  // --routing CLI flag enables model routing
+  if (cliOptions.routing) {
+    merged.modelRouting = { ...merged.modelRouting, enabled: true };
+  }
+
+  return merged;
 }

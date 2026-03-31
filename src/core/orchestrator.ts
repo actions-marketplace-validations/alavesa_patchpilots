@@ -46,6 +46,16 @@ export class Orchestrator {
     }
   }
 
+  private trackCost(agentName: string, result: { tokensUsed: { input: number; output: number }; model?: string; modelsUsed?: string[] }): void {
+    if (result.modelsUsed && result.modelsUsed.length > 1) {
+      // Multiple models used — track as the default model (per-tier tracking
+      // would require per-tier token breakdowns which we don't have yet)
+      this.costTracker.track(agentName, result.tokensUsed, result.model);
+    } else {
+      this.costTracker.track(agentName, result.tokensUsed, result.model);
+    }
+  }
+
   private createStreamCallback(verbose: boolean) {
     let thinkingStarted = false;
     return (token: string) => {
@@ -144,7 +154,7 @@ export class Orchestrator {
       reviewResult.findings = [...tsFindings, ...reviewResult.findings];
       reviewResult.summary = `TypeScript: ${tsFindings.length} error(s). ${reviewResult.summary}`;
     }
-    this.costTracker.track("Reviewer", result.tokensUsed);
+    this.trackCost("Reviewer", result);
 
     if (options.verbose) {
       console.error(""); // newline after dots
@@ -208,7 +218,7 @@ export class Orchestrator {
       onToken,
     );
     const coderResult = coderResultRaw.data as CoderResult;
-    this.costTracker.track("Coder", coderResultRaw.tokensUsed);
+    this.trackCost("Coder", coderResultRaw);
 
     if (options.verbose) {
       console.error(""); // newline after dots
@@ -271,7 +281,7 @@ export class Orchestrator {
     const tester = new TesterAgent(this.llmClient, options.framework ?? "vitest");
     const result = await tester.execute({ files, config: this.config }, onToken);
     const testResult = result.data as TestResult;
-    this.costTracker.track("Tester", result.tokensUsed);
+    this.trackCost("Tester", result);
 
     if (options.verbose) {
       console.error("");
@@ -318,7 +328,7 @@ export class Orchestrator {
     const planner = new PlannerAgent(this.llmClient, options.task);
     const result = await planner.execute({ files, config: this.config }, onToken);
     const planResult = result.data as PlanResult;
-    this.costTracker.track("Planner", result.tokensUsed);
+    this.trackCost("Planner", result);
 
     if (options.verbose) {
       console.error("");
@@ -354,7 +364,7 @@ export class Orchestrator {
     const docs = new DocsAgent(this.llmClient);
     const result = await docs.execute({ files, config: this.config }, onToken);
     const docsResult = result.data as DocsResult;
-    this.costTracker.track("Docs", result.tokensUsed);
+    this.trackCost("Docs", result);
 
     if (options.verbose) {
       console.error("");
@@ -420,7 +430,7 @@ export class Orchestrator {
       onToken,
     );
     const securityResult = result.data as SecurityResult;
-    this.costTracker.track("Security", result.tokensUsed);
+    this.trackCost("Security", result);
 
     if (options.verbose) {
       console.error("");
@@ -484,7 +494,7 @@ export class Orchestrator {
       onToken,
     );
     const designerResult = result.data as DesignerResult;
-    this.costTracker.track("Designer", result.tokensUsed);
+    this.trackCost("Designer", result);
 
     if (options.verbose) {
       console.error("");
@@ -550,7 +560,7 @@ export class Orchestrator {
       const planner = new PlannerAgent(this.llmClient, options.task);
       const r = await planner.execute(context, onToken);
       planResult = r.data as PlanResult;
-      this.costTracker.track("Planner", r.tokensUsed);
+      this.trackCost("Planner", r);
       if (options.verbose) { console.error(""); log.verbose(`Planner: ${r.tokensUsed.input} in / ${r.tokensUsed.output} out`); }
     }
 
@@ -568,7 +578,7 @@ export class Orchestrator {
       reviewResult.findings = [...tsFindings, ...reviewResult.findings];
       reviewResult.summary = `TypeScript: ${tsFindings.length} error(s). ${reviewResult.summary}`;
     }
-    this.costTracker.track("Reviewer", reviewRaw.tokensUsed);
+    this.trackCost("Reviewer", reviewRaw);
     if (options.verbose) { console.error(""); log.verbose(`Reviewer: ${reviewRaw.tokensUsed.input} in / ${reviewRaw.tokensUsed.output} out`); }
 
     // 3. Security (batched)
@@ -584,7 +594,7 @@ export class Orchestrator {
       onToken,
     );
     const securityResult = securityRaw.data as SecurityResult;
-    this.costTracker.track("Security", securityRaw.tokensUsed);
+    this.trackCost("Security", securityRaw);
     if (options.verbose) { console.error(""); log.verbose(`Security: ${securityRaw.tokensUsed.input} in / ${securityRaw.tokensUsed.output} out`); }
 
     // 4. Designer (optional, batched)
@@ -602,7 +612,7 @@ export class Orchestrator {
         onToken,
       );
       designerResult = designerRaw.data as DesignerResult;
-      this.costTracker.track("Designer", designerRaw.tokensUsed);
+      this.trackCost("Designer", designerRaw);
       if (options.verbose) { console.error(""); log.verbose(`Designer: ${designerRaw.tokensUsed.input} in / ${designerRaw.tokensUsed.output} out`); }
     }
 
@@ -632,7 +642,7 @@ export class Orchestrator {
         onToken,
       );
       coderResult = coderRaw.data as CoderResult;
-      this.costTracker.track("Coder", coderRaw.tokensUsed);
+      this.trackCost("Coder", coderRaw);
       if (options.verbose) { console.error(""); log.verbose(`Coder: ${coderRaw.tokensUsed.input} in / ${coderRaw.tokensUsed.output} out`); }
     }
 
@@ -647,7 +657,7 @@ export class Orchestrator {
         onToken,
       );
       testResult = r.data as TestResult;
-      this.costTracker.track("Tester", r.tokensUsed);
+      this.trackCost("Tester", r);
       if (options.verbose) { console.error(""); log.verbose(`Tester: ${r.tokensUsed.input} in / ${r.tokensUsed.output} out`); }
     }
 
@@ -662,7 +672,7 @@ export class Orchestrator {
         onToken,
       );
       docsResult = r.data as DocsResult;
-      this.costTracker.track("Docs", r.tokensUsed);
+      this.trackCost("Docs", r);
       if (options.verbose) { console.error(""); log.verbose(`Docs: ${r.tokensUsed.input} in / ${r.tokensUsed.output} out`); }
     }
 
@@ -762,7 +772,7 @@ export class Orchestrator {
     const agent = new CustomAgent(this.llmClient, agentConfig);
     const result = await agent.execute({ files, config: this.config }, onToken);
     const reviewResult = result.data as ReviewResult;
-    this.costTracker.track(agentConfig.name, result.tokensUsed);
+    this.trackCost(agentConfig.name, result);
 
     if (options.verbose) {
       console.error("");

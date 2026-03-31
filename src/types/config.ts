@@ -4,6 +4,17 @@ export interface CustomAgentConfig {
   prompt: string;
 }
 
+export interface ModelRoutingUserConfig {
+  enabled?: boolean;
+  fast?: string;
+  standard?: string;
+  deep?: string;
+  fastMaxLines?: number;
+  deepMinLines?: number;
+  fastPatterns?: string[];
+  deepPatterns?: string[];
+}
+
 export interface PatchPilotsConfig {
   apiKey: string;
   model: string;
@@ -15,6 +26,7 @@ export interface PatchPilotsConfig {
   maxFiles: number;
   batchSize: number;
   customAgents?: CustomAgentConfig[];
+  modelRouting?: ModelRoutingUserConfig;
 }
 
 export const DEFAULT_CONFIG: Omit<PatchPilotsConfig, "apiKey"> = {

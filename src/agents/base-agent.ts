@@ -2,6 +2,7 @@ import type { z } from "zod";
 import type { LLMClient } from "../core/llm-client.js";
 import type { AgentContext, AgentResult, FileContent } from "../types/index.js";
 import { log } from "../utils/logger.js";
+import { type ModelRoutingConfig, DEFAULT_ROUTING, routeFiles, tierToModel, logRoutingSummary } from "../utils/model-router.js";
 
 export abstract class BaseAgent<T = unknown> {
   abstract readonly name: string;
@@ -16,6 +17,7 @@ export abstract class BaseAgent<T = unknown> {
   async execute(
     context: AgentContext,
     onToken?: (text: string) => void,
+    modelOverride?: string,
   ): Promise<AgentResult> {
     const systemPrompt = this.getSystemPrompt();
     const userMessage = this.buildUserMessage(context);
@@ -28,6 +30,7 @@ export abstract class BaseAgent<T = unknown> {
       {
         maxTokens: context.config.maxTokens,
         temperature: context.config.temperature,
+        model: modelOverride,
       },
       onToken,
     );
@@ -38,6 +41,7 @@ export abstract class BaseAgent<T = unknown> {
       data: response.data,
       rawResponse: JSON.stringify(response.data),
       tokensUsed: response.usage,
+      model: modelOverride,
     };
   }
 
@@ -47,6 +51,60 @@ export abstract class BaseAgent<T = unknown> {
     onToken?: (text: string) => void,
   ): Promise<AgentResult> {
     const batchSize = context.config.batchSize ?? 5;
+    const routingUserConfig = context.config.modelRouting;
+    const routingEnabled = routingUserConfig?.enabled === true;
+
+    // Build routing config by merging user overrides with defaults
+    const routingConfig: ModelRoutingConfig = routingEnabled
+      ? { ...DEFAULT_ROUTING, ...routingUserConfig, enabled: true }
+      : DEFAULT_ROUTING;
+
+    // If routing is enabled, group files by model tier first
+    if (routingEnabled) {
+      const groups = routeFiles(context.files, routingConfig);
+      log.info(`Smart routing: ${context.files.length} files across ${groups.size} model tier(s)`);
+      logRoutingSummary(groups, routingConfig);
+
+      const allResults: T[] = [];
+      let totalInput = 0;
+      let totalOutput = 0;
+      const modelsUsed: string[] = [];
+
+      for (const [tier, files] of groups) {
+        const model = tierToModel(tier, routingConfig);
+        modelsUsed.push(model);
+
+        // Batch within each tier
+        const batches: FileContent[][] = [];
+        for (let i = 0; i < files.length; i += batchSize) {
+          batches.push(files.slice(i, i + batchSize));
+        }
+
+        for (let i = 0; i < batches.length; i++) {
+          log.verbose(`  ${tier} batch ${i + 1}/${batches.length} (${batches[i].length} files → ${model})`);
+
+          const batchContext: AgentContext = { ...context, files: batches[i] };
+          const result = await this.executeWithRetry(batchContext, onToken, model);
+          allResults.push(result.data as T);
+          totalInput += result.tokensUsed.input;
+          totalOutput += result.tokensUsed.output;
+        }
+      }
+
+      const merged = mergeResults(allResults);
+
+      return {
+        agentName: this.name,
+        success: true,
+        data: merged,
+        rawResponse: JSON.stringify(merged),
+        tokensUsed: { input: totalInput, output: totalOutput },
+        model: modelsUsed.length === 1 ? modelsUsed[0] : undefined,
+        modelsUsed: modelsUsed.length > 1 ? [...new Set(modelsUsed)] : undefined,
+      };
+    }
+
+    // Standard path: no routing
     const files = context.files;
 
     // No batching needed for small file sets
@@ -94,9 +152,10 @@ export abstract class BaseAgent<T = unknown> {
   private async executeWithRetry(
     context: AgentContext,
     onToken?: (text: string) => void,
+    modelOverride?: string,
   ): Promise<AgentResult> {
     try {
-      return await this.execute(context, onToken);
+      return await this.execute(context, onToken, modelOverride);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
 
@@ -108,10 +167,12 @@ export abstract class BaseAgent<T = unknown> {
         const firstHalf = await this.executeWithRetry(
           { ...context, files: context.files.slice(0, half) },
           onToken,
+          modelOverride,
         );
         const secondHalf = await this.executeWithRetry(
           { ...context, files: context.files.slice(half) },
           onToken,
+          modelOverride,
         );
 
         // Merge the two results by combining their raw data
@@ -124,6 +185,7 @@ export abstract class BaseAgent<T = unknown> {
             input: firstHalf.tokensUsed.input + secondHalf.tokensUsed.input,
             output: firstHalf.tokensUsed.output + secondHalf.tokensUsed.output,
           },
+          model: modelOverride,
         };
       }
 

@@ -16,6 +16,7 @@ export function registerImproveCommand(program: Command): void {
     .option("--verbose", "Show token usage and timing", false)
     .option("--write", "Write improved files to disk", false)
     .option("--backup", "Create .bak files before overwriting", false)
+    .option("--routing", "Smart model routing (Haiku/Sonnet/Opus by complexity)", false)
     .action(async (targetPath: string, opts) => {
       try {
         if (!opts.json) await playBanner();
@@ -24,6 +25,7 @@ export function registerImproveCommand(program: Command): void {
         const config = loadConfig(targetPath, {
           model: opts.model,
           config: opts.config,
+          routing: opts.routing,
         });
 
         const orchestrator = new Orchestrator(config);

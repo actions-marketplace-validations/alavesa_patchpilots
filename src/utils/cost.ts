@@ -11,6 +11,7 @@ const DEFAULT_PRICING = { input: 3.0, output: 15.0 };
 
 interface UsageEntry {
   agent: string;
+  model: string;
   input: number;
   output: number;
   cost: number;
@@ -18,18 +19,19 @@ interface UsageEntry {
 
 export class CostTracker {
   private entries: UsageEntry[] = [];
-  private model: string;
+  private defaultModel: string;
 
   constructor(model = "claude-sonnet-4-6") {
-    this.model = model;
+    this.defaultModel = model;
   }
 
-  track(agentName: string, usage: { input: number; output: number }): void {
-    const pricing = MODEL_PRICING[this.model] ?? DEFAULT_PRICING;
+  track(agentName: string, usage: { input: number; output: number }, model?: string): void {
+    const m = model ?? this.defaultModel;
+    const pricing = MODEL_PRICING[m] ?? DEFAULT_PRICING;
     const cost =
       (usage.input / 1_000_000) * pricing.input +
       (usage.output / 1_000_000) * pricing.output;
-    this.entries.push({ agent: agentName, input: usage.input, output: usage.output, cost });
+    this.entries.push({ agent: agentName, model: m, input: usage.input, output: usage.output, cost });
   }
 
   get totalCost(): number {
@@ -52,9 +54,12 @@ export class CostTracker {
     lines.push(chalk.bold.underline("Cost Summary"));
     lines.push("");
 
+    const multiModel = new Set(this.entries.map(e => e.model)).size > 1;
+
     for (const entry of this.entries) {
+      const modelTag = multiModel ? chalk.dim(` [${entry.model}]`) : "";
       lines.push(
-        `  ${chalk.cyan(entry.agent.padEnd(12))} ${chalk.gray(`${entry.input.toLocaleString()} in / ${entry.output.toLocaleString()} out`)} ${chalk.yellow(`$${entry.cost.toFixed(4)}`)}`,
+        `  ${chalk.cyan(entry.agent.padEnd(12))} ${chalk.gray(`${entry.input.toLocaleString()} in / ${entry.output.toLocaleString()} out`)} ${chalk.yellow(`$${entry.cost.toFixed(4)}`)}${modelTag}`,
       );
     }
 

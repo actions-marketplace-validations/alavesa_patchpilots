@@ -123,6 +123,7 @@ Before any AI agent runs, PatchPilots executes `tsc --noEmit` to catch TypeScrip
 | `--framework <name>` | Test framework (default: `vitest`) |
 | `--json` | Output raw JSON |
 | `--verbose` | Show per-agent token usage |
+| `--routing` | Smart model routing (Haiku/Sonnet/Opus by file complexity) |
 | `-m, --model <model>` | Claude model to use |
 
 ### `patchpilots review <path>`
@@ -281,6 +282,40 @@ Or create a per-project `.patchpilots.json`:
 
 Config resolution order: CLI flags > project `.patchpilots.json` > global `~/.patchpilots.json` > `ANTHROPIC_API_KEY` env var.
 
+### Smart Model Routing
+
+Route files to different Claude models based on complexity — simple files go to Haiku (cheap + fast), most code to Sonnet, and complex/security-critical files to Opus.
+
+```bash
+# Enable via CLI flag
+npx patchpilots audit ./src --routing
+
+# Or in .patchpilots.json
+```
+
+```json
+{
+  "modelRouting": {
+    "enabled": true,
+    "fast": "claude-haiku-4-5",
+    "standard": "claude-sonnet-4-6",
+    "deep": "claude-opus-4-6",
+    "fastMaxLines": 50,
+    "deepMinLines": 500,
+    "fastPatterns": ["types", "constants", "config", "index"],
+    "deepPatterns": ["auth", "crypto", "security", "middleware", "payment", "database"]
+  }
+}
+```
+
+| Tier | Default model | When |
+|------|--------------|------|
+| **fast** | claude-haiku-4-5 | Files under 50 lines, or matching `types`, `config`, `constants`, `index`, `.d.ts` |
+| **standard** | claude-sonnet-4-6 | Everything else |
+| **deep** | claude-opus-4-6 | Files over 500 lines, or matching `auth`, `crypto`, `security`, `middleware`, `payment`, `database`, `migration` |
+
+Pattern matching takes priority over line count. All thresholds and patterns are configurable.
+
 ### Supported file types
 
 TypeScript, JavaScript, JSX/TSX, Python, Go, Rust, Java, Ruby, PHP, C/C++, C#, Swift, Kotlin, HTML, CSS, SCSS, Vue, Svelte.
@@ -329,6 +364,7 @@ The action posts findings as a PR comment (updated on each push, no spam). Criti
 - **Adaptive thinking** — deeper reasoning catches bugs a surface scan misses
 - **Streaming** — real-time response delivery, no timeouts
 - **Prompt caching** — ~90% cost savings on repeat runs
+- **Smart model routing** — Haiku for simple files, Sonnet for most code, Opus for complex/critical
 - **Cost tracking** — per-agent token usage and USD estimate after every run
 - **Diff-based patches** — search-and-replace instead of full files, works on large codebases
 
@@ -364,7 +400,7 @@ Adding a new agent is one file + three methods.
 - [x] **GitHub Action** — auto-review PRs and post findings as comments
 - [x] **Parallel file review** — review in batches instead of one giant prompt
 - [x] **Changed files only** — GitHub Action reviews only files touched in the PR for faster, cheaper runs
-- [ ] **Smart model routing** — Haiku for Docs/Tester, Sonnet for Reviewer/Coder
+- [x] **Smart model routing** — Haiku for simple files, Sonnet for most code, Opus for complex/critical
 - [x] **Custom agents** — define your own agents via `.patchpilots.json`
 - [x] **Designer agent** — WCAG 2.1 AA accessibility, design tokens, CSS consistency, component markup
 

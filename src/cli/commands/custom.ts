@@ -14,6 +14,7 @@ export function registerCustomCommand(program: Command): void {
     .option("--severity <level>", "Minimum severity: critical | warning | info", "info")
     .option("--json", "Output raw JSON", false)
     .option("--verbose", "Show token usage and timing", false)
+    .option("--routing", "Smart model routing (Haiku/Sonnet/Opus by complexity)", false)
     .action(async (agentName: string, targetPath: string, opts) => {
       try {
         if (!opts.json) await playBanner();
@@ -22,6 +23,7 @@ export function registerCustomCommand(program: Command): void {
         const config = loadConfig(targetPath, {
           model: opts.model,
           config: opts.config,
+          routing: opts.routing,
         });
 
         // List available agents if "list" is passed

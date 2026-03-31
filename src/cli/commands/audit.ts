@@ -18,6 +18,7 @@ export function registerAuditCommand(program: Command): void {
     .option("--framework <name>", "Test framework to use", "vitest")
     .option("--json", "Output raw JSON", false)
     .option("--verbose", "Show per-agent token usage", false)
+    .option("--routing", "Smart model routing (Haiku/Sonnet/Opus by complexity)", false)
     .action(async (targetPath: string, opts) => {
       try {
         if (!opts.json) await playBanner();
@@ -26,6 +27,7 @@ export function registerAuditCommand(program: Command): void {
         const config = loadConfig(targetPath, {
           model: opts.model,
           config: opts.config,
+          routing: opts.routing,
         });
 
         const skip = opts.skip ? opts.skip.split(",").map((s: string) => s.trim()) : [];

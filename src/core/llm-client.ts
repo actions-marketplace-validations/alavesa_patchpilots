@@ -35,19 +35,30 @@ export class LLMClient {
     const jsonSchema = zodToJsonSchema(schema as any);
 
     try {
+      // Haiku doesn't support adaptive thinking or json_schema output
+      const isHaiku = model.includes("haiku");
+
+      const haikuSystemSuffix = isHaiku
+        ? `\n\nIMPORTANT: You MUST respond with ONLY valid JSON matching this schema — no markdown, no explanation:\n${JSON.stringify(jsonSchema, null, 2)}`
+        : "";
+
       const stream = this.client.messages.stream({
         model,
         max_tokens: options.maxTokens,
-        temperature: 1,
-        thinking: { type: "adaptive" },
-        system: [{ type: "text" as const, text: systemPrompt, cache_control: { type: "ephemeral" as const } }],
+        temperature: isHaiku ? 0.3 : 1,
+        ...(isHaiku ? {} : { thinking: { type: "adaptive" as const } }),
+        system: [{ type: "text" as const, text: systemPrompt + haikuSystemSuffix, cache_control: { type: "ephemeral" as const } }],
         messages: [{ role: "user", content: userMessage }],
-        output_config: {
-          format: {
-            type: "json_schema" as const,
-            schema: jsonSchema as Record<string, unknown>,
-          },
-        },
+        ...(isHaiku
+          ? {}
+          : {
+              output_config: {
+                format: {
+                  type: "json_schema" as const,
+                  schema: jsonSchema as Record<string, unknown>,
+                },
+              },
+            }),
       });
 
       for await (const event of stream) {
@@ -62,10 +73,16 @@ export class LLMClient {
 
       const finalMessage = await stream.finalMessage();
 
-      const text = finalMessage.content
+      let text = finalMessage.content
         .filter((block): block is Anthropic.TextBlock => block.type === "text")
         .map((block) => block.text)
         .join("\n");
+
+      // Haiku may wrap JSON in markdown code fences
+      if (isHaiku) {
+        const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonMatch) text = jsonMatch[1].trim();
+      }
 
       const parsed = schema.parse(JSON.parse(text));
 
