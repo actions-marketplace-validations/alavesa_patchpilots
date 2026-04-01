@@ -30,6 +30,12 @@ A team of AI agents that reviews and improves your code automatically.
 
 Built for solo developers and hobby projects — when you don't have a team to review your PRs, PatchPilots is your crew.
 
+![patchpilots_cli](https://github.com/user-attachments/assets/53f5400c-8d4d-4a75-8797-a356c4250468)
+**PatchPilots Reviewer and Coder in action on CLI.**
+
+![patchpilots_github_PR](https://github.com/user-attachments/assets/06545eda-ed09-4be5-813f-356baa9dd004)
+**The action posts findings as a PR comment (no spam).**
+
 ## Use it 3 ways
 
 ### `npx` — no install, one-off
