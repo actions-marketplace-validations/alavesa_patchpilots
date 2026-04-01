@@ -108,37 +108,44 @@ function formatReview(review) {
   return lines.join("\n");
 }
 
-function formatSecurity(security) {
-  if (!security || !security.findings || security.findings.length === 0) {
-    return "## \uD83D\uDD12 Security Audit\n\n\u2705 No security issues found.\n\n";
+function formatFindingsTable(section, title, emptyMsg, getCategoryLabel) {
+  if (!section || !section.findings || section.findings.length === 0) {
+    return `## ${title}\n\n\u2705 ${emptyMsg}\n\n`;
   }
 
   const lines = [];
-  lines.push(
-    `## \uD83D\uDD12 Security Audit (${security.findings.length} findings)`
-  );
+  lines.push(`## ${title} (${section.findings.length} findings)`);
   lines.push("");
   lines.push("| Severity | File | Category | Finding | Remediation |");
   lines.push("|----------|------|----------|---------|-------------|");
 
-  const shown = security.findings.slice(0, MAX_FINDINGS);
+  const shown = section.findings.slice(0, MAX_FINDINGS);
   for (const f of shown) {
     const loc = f.line ? `\`${f.file}:${f.line}\`` : `\`${f.file}\``;
-    const cat = f.cwe ? `${f.category} (${f.cwe})` : f.category;
+    const cat = getCategoryLabel(f);
     lines.push(
       `| ${severityEmoji(f.severity)} ${f.severity} | ${loc} | ${escapeMarkdown(cat)} | ${escapeMarkdown(f.title)} | ${escapeMarkdown(truncate(f.remediation, 100))} |`
     );
   }
 
-  if (security.findings.length > MAX_FINDINGS) {
+  if (section.findings.length > MAX_FINDINGS) {
     lines.push("");
     lines.push(
-      `*... and ${security.findings.length - MAX_FINDINGS} more findings*`
+      `*... and ${section.findings.length - MAX_FINDINGS} more findings*`
     );
   }
 
   lines.push("");
   return lines.join("\n");
+}
+
+function formatSecurity(security) {
+  return formatFindingsTable(
+    security,
+    "\uD83D\uDD12 Security Audit",
+    "No security issues found.",
+    (f) => f.cwe ? `${f.category} (${f.cwe})` : f.category
+  );
 }
 
 function formatPatches(coder) {
@@ -193,36 +200,12 @@ function formatPatches(coder) {
 }
 
 function formatDesigner(designer) {
-  if (!designer || !designer.findings || designer.findings.length === 0) {
-    return "## \uD83C\uDFA8 Design & Accessibility\n\n\u2705 No design or accessibility issues found.\n\n";
-  }
-
-  const lines = [];
-  lines.push(
-    `## \uD83C\uDFA8 Design & Accessibility (${designer.findings.length} findings)`
+  return formatFindingsTable(
+    designer,
+    "\uD83C\uDFA8 Design & Accessibility",
+    "No design or accessibility issues found.",
+    (f) => f.wcagRef ? `${f.category} (${f.wcagRef})` : f.category
   );
-  lines.push("");
-  lines.push("| Severity | File | Category | Finding | Remediation |");
-  lines.push("|----------|------|----------|---------|-------------|");
-
-  const shown = designer.findings.slice(0, MAX_FINDINGS);
-  for (const f of shown) {
-    const loc = f.line ? `\`${f.file}:${f.line}\`` : `\`${f.file}\``;
-    const cat = f.wcagRef ? `${f.category} (${f.wcagRef})` : f.category;
-    lines.push(
-      `| ${severityEmoji(f.severity)} ${f.severity} | ${loc} | ${escapeMarkdown(cat)} | ${escapeMarkdown(f.title)} | ${escapeMarkdown(truncate(f.remediation, 100))} |`
-    );
-  }
-
-  if (designer.findings.length > MAX_FINDINGS) {
-    lines.push("");
-    lines.push(
-      `*... and ${designer.findings.length - MAX_FINDINGS} more findings*`
-    );
-  }
-
-  lines.push("");
-  return lines.join("\n");
 }
 
 function formatTests(tests) {

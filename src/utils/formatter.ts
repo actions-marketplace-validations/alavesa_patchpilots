@@ -13,6 +13,30 @@ const SEVERITY_ICONS: Record<Severity, string> = {
   info: "🔵",
 };
 
+function groupByFile<T extends { file: string }>(items: T[]): Map<string, T[]> {
+  const map = new Map<string, T[]>();
+  for (const item of items) {
+    const existing = map.get(item.file) ?? [];
+    existing.push(item);
+    map.set(item.file, existing);
+  }
+  return map;
+}
+
+function countSeverities(findings: { severity: string }[], keys: string[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const k of keys) counts[k] = 0;
+  for (const f of findings) counts[f.severity]++;
+  return counts;
+}
+
+function formatSeveritySummary(counts: Record<string, number>, colors: Record<string, (t: string) => string>): string {
+  return Object.entries(counts)
+    .filter(([, n]) => n > 0)
+    .map(([sev, n]) => (colors[sev] ?? chalk.white)(`${n} ${sev}`))
+    .join(", ");
+}
+
 export function formatReviewResult(result: ReviewResult): string {
   const lines: string[] = [];
 
@@ -26,13 +50,7 @@ export function formatReviewResult(result: ReviewResult): string {
     return lines.join("\n");
   }
 
-  // Group findings by file
-  const byFile = new Map<string, ReviewFinding[]>();
-  for (const finding of result.findings) {
-    const existing = byFile.get(finding.file) ?? [];
-    existing.push(finding);
-    byFile.set(finding.file, existing);
-  }
+  const byFile = groupByFile(result.findings);
 
   for (const [file, findings] of byFile) {
     lines.push(chalk.bold(`  📄 ${file}`));
@@ -50,14 +68,8 @@ export function formatReviewResult(result: ReviewResult): string {
   }
 
   // Summary
-  const counts = { critical: 0, warning: 0, info: 0 };
-  for (const f of result.findings) counts[f.severity]++;
-
-  lines.push(chalk.bold("  Summary: ") + [
-    counts.critical > 0 ? chalk.red(`${counts.critical} critical`) : null,
-    counts.warning > 0 ? chalk.yellow(`${counts.warning} warnings`) : null,
-    counts.info > 0 ? chalk.blue(`${counts.info} info`) : null,
-  ].filter(Boolean).join(", "));
+  const counts = countSeverities(result.findings, ["critical", "warning", "info"]);
+  lines.push(chalk.bold("  Summary: ") + formatSeveritySummary(counts, { critical: chalk.red, warning: chalk.yellow, info: chalk.blue }));
 
   lines.push(`  ${chalk.gray(result.summary)}`);
   lines.push("");
@@ -263,13 +275,7 @@ export function formatSecurityResult(result: SecurityResult): string {
     return lines.join("\n");
   }
 
-  // Group by file
-  const byFile = new Map<string, typeof result.findings>();
-  for (const finding of result.findings) {
-    const existing = byFile.get(finding.file) ?? [];
-    existing.push(finding);
-    byFile.set(finding.file, existing);
-  }
+  const byFile = groupByFile(result.findings);
 
   for (const [file, findings] of byFile) {
     lines.push(chalk.bold(`  🔒 ${file}`));
@@ -286,18 +292,10 @@ export function formatSecurityResult(result: SecurityResult): string {
     }
   }
 
-  // Counts
-  const counts: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 };
-  for (const f of result.findings) counts[f.severity]++;
-
+  const counts = countSeverities(result.findings, ["critical", "high", "medium", "low"]);
   const riskColor = RISK_COLORS[result.riskScore] ?? chalk.white;
   lines.push(chalk.bold("  Risk score: ") + riskColor(result.riskScore.toUpperCase()));
-  lines.push(chalk.bold("  Findings: ") + [
-    counts.critical > 0 ? chalk.red(`${counts.critical} critical`) : null,
-    counts.high > 0 ? chalk.red(`${counts.high} high`) : null,
-    counts.medium > 0 ? chalk.yellow(`${counts.medium} medium`) : null,
-    counts.low > 0 ? chalk.blue(`${counts.low} low`) : null,
-  ].filter(Boolean).join(", "));
+  lines.push(chalk.bold("  Findings: ") + formatSeveritySummary(counts, SEC_SEVERITY_COLORS));
   lines.push(`  ${chalk.gray(result.summary)}`);
   lines.push("");
 
@@ -324,13 +322,7 @@ export function formatDesignerResult(result: DesignerResult): string {
     return lines.join("\n");
   }
 
-  // Group by file
-  const byFile = new Map<string, typeof result.findings>();
-  for (const finding of result.findings) {
-    const existing = byFile.get(finding.file) ?? [];
-    existing.push(finding);
-    byFile.set(finding.file, existing);
-  }
+  const byFile = groupByFile(result.findings);
 
   for (const [file, findings] of byFile) {
     lines.push(chalk.bold(`  🎨 ${file}`));
@@ -347,18 +339,10 @@ export function formatDesignerResult(result: DesignerResult): string {
     }
   }
 
-  // Counts
-  const counts: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 };
-  for (const f of result.findings) counts[f.severity]++;
-
+  const counts = countSeverities(result.findings, ["critical", "high", "medium", "low"]);
   const healthColor = RISK_COLORS[result.designHealthScore] ?? chalk.white;
   lines.push(chalk.bold("  Design health: ") + healthColor(result.designHealthScore.toUpperCase()));
-  lines.push(chalk.bold("  Findings: ") + [
-    counts.critical > 0 ? chalk.red(`${counts.critical} critical`) : null,
-    counts.high > 0 ? chalk.red(`${counts.high} high`) : null,
-    counts.medium > 0 ? chalk.yellow(`${counts.medium} medium`) : null,
-    counts.low > 0 ? chalk.blue(`${counts.low} low`) : null,
-  ].filter(Boolean).join(", "));
+  lines.push(chalk.bold("  Findings: ") + formatSeveritySummary(counts, SEC_SEVERITY_COLORS));
   lines.push(`  ${chalk.gray(result.summary)}`);
   lines.push("");
 
@@ -389,13 +373,8 @@ export function formatAuditResult(result: AuditResult): string {
   if (result.review.findings.length === 0) {
     lines.push(chalk.green("     No issues found"));
   } else {
-    const rc: Record<string, number> = { critical: 0, warning: 0, info: 0 };
-    for (const f of result.review.findings) rc[f.severity]++;
-    lines.push("     " + [
-      rc.critical > 0 ? chalk.red(`${rc.critical} critical`) : null,
-      rc.warning > 0 ? chalk.yellow(`${rc.warning} warnings`) : null,
-      rc.info > 0 ? chalk.blue(`${rc.info} info`) : null,
-    ].filter(Boolean).join(", "));
+    const rc = countSeverities(result.review.findings, ["critical", "warning", "info"]);
+    lines.push("     " + formatSeveritySummary(rc, { critical: chalk.red, warning: chalk.yellow, info: chalk.blue }));
   }
 
   // Security
@@ -404,14 +383,8 @@ export function formatAuditResult(result: AuditResult): string {
   const riskColor = RISK_COLORS[result.security.riskScore] ?? chalk.white;
   lines.push(`     Risk score: ${riskColor(result.security.riskScore.toUpperCase())}`);
   if (result.security.findings.length > 0) {
-    const sc: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 };
-    for (const f of result.security.findings) sc[f.severity]++;
-    lines.push("     " + [
-      sc.critical > 0 ? chalk.red(`${sc.critical} critical`) : null,
-      sc.high > 0 ? chalk.red(`${sc.high} high`) : null,
-      sc.medium > 0 ? chalk.yellow(`${sc.medium} medium`) : null,
-      sc.low > 0 ? chalk.blue(`${sc.low} low`) : null,
-    ].filter(Boolean).join(", "));
+    const sc = countSeverities(result.security.findings, ["critical", "high", "medium", "low"]);
+    lines.push("     " + formatSeveritySummary(sc, SEC_SEVERITY_COLORS));
   }
 
   // Designer
@@ -421,14 +394,8 @@ export function formatAuditResult(result: AuditResult): string {
     const healthColor = RISK_COLORS[result.designer.designHealthScore] ?? chalk.white;
     lines.push(`     Design health: ${healthColor(result.designer.designHealthScore.toUpperCase())}`);
     if (result.designer.findings.length > 0) {
-      const dc: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 };
-      for (const f of result.designer.findings) dc[f.severity]++;
-      lines.push("     " + [
-        dc.critical > 0 ? chalk.red(`${dc.critical} critical`) : null,
-        dc.high > 0 ? chalk.red(`${dc.high} high`) : null,
-        dc.medium > 0 ? chalk.yellow(`${dc.medium} medium`) : null,
-        dc.low > 0 ? chalk.blue(`${dc.low} low`) : null,
-      ].filter(Boolean).join(", "));
+      const dc = countSeverities(result.designer.findings, ["critical", "high", "medium", "low"]);
+      lines.push("     " + formatSeveritySummary(dc, SEC_SEVERITY_COLORS));
     }
   }
 

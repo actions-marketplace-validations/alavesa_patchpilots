@@ -40,20 +40,52 @@ export class Orchestrator {
     this.costTracker = new CostTracker(config.model);
   }
 
+  private async gatherFiles(targetPath: string, verbose?: boolean): Promise<Awaited<ReturnType<typeof collectFiles>> | null> {
+    log.step("Collecting files...");
+    const files = await collectFiles(targetPath, this.config);
+    if (files.length === 0) {
+      log.warn("No matching files found.");
+      return null;
+    }
+    log.info(`Found ${files.length} file(s) to ${verbose ? "audit" : "review"}`);
+    if (verbose) {
+      for (const f of files) log.verbose(`  ${f.path}`);
+    }
+    return files;
+  }
+
+  private applyPatches(coderResult: CoderResult, options: { backup?: boolean }): void {
+    for (const file of coderResult.improvedFiles) {
+      const absPath = resolve(file.path);
+      if (options.backup) {
+        copyFileSync(absPath, absPath + ".bak");
+        log.verbose(`Backed up ${file.path} → ${file.path}.bak`);
+      }
+      let content = readFileSync(absPath, "utf-8");
+      let applied = 0;
+      for (const patch of file.patches) {
+        if (content.includes(patch.find)) {
+          content = content.replace(patch.find, patch.replace);
+          applied++;
+        } else {
+          log.warn(`Patch skipped (no match): ${patch.description}`);
+        }
+      }
+      if (applied > 0) {
+        writeFileSync(absPath, content, "utf-8");
+        log.success(`Patched ${file.path} (${applied}/${file.patches.length})`);
+      }
+    }
+  }
+
   private printCost(json?: boolean): void {
     if (!json) {
       console.error(this.costTracker.formatSummary());
     }
   }
 
-  private trackCost(agentName: string, result: { tokensUsed: { input: number; output: number }; model?: string; modelsUsed?: string[] }): void {
-    if (result.modelsUsed && result.modelsUsed.length > 1) {
-      // Multiple models used — track as the default model (per-tier tracking
-      // would require per-tier token breakdowns which we don't have yet)
-      this.costTracker.track(agentName, result.tokensUsed, result.model);
-    } else {
-      this.costTracker.track(agentName, result.tokensUsed, result.model);
-    }
+  private trackCost(agentName: string, result: { tokensUsed: { input: number; output: number }; model?: string }): void {
+    this.costTracker.track(agentName, result.tokensUsed, result.model);
   }
 
   private createStreamCallback(verbose: boolean) {
@@ -108,18 +140,8 @@ export class Orchestrator {
   }
 
   async review(targetPath: string, options: OrchestratorOptions = {}): Promise<ReviewResult> {
-    log.step("Collecting files...");
-    const files = await collectFiles(targetPath, this.config);
-
-    if (files.length === 0) {
-      log.warn("No matching files found.");
-      return { findings: [], summary: "No files to review." };
-    }
-
-    log.info(`Found ${files.length} file(s) to review`);
-    if (options.verbose) {
-      for (const f of files) log.verbose(`  ${f.path}`);
-    }
+    const files = await this.gatherFiles(targetPath, options.verbose);
+    if (!files) return { findings: [], summary: "No files to review." };
 
     // Pre-flight: run TypeScript compiler check (free, instant)
     log.step("⚡ Running TypeScript pre-check...");
@@ -233,27 +255,7 @@ export class Orchestrator {
 
     // Apply patches if requested
     if (options.write && coderResult.improvedFiles.length > 0) {
-      for (const file of coderResult.improvedFiles) {
-        const absPath = resolve(file.path);
-        if (options.backup) {
-          copyFileSync(absPath, absPath + ".bak");
-          log.verbose(`Backed up ${file.path} → ${file.path}.bak`);
-        }
-        let content = readFileSync(absPath, "utf-8");
-        let applied = 0;
-        for (const patch of file.patches) {
-          if (content.includes(patch.find)) {
-            content = content.replace(patch.find, patch.replace);
-            applied++;
-          } else {
-            log.warn(`Patch skipped (no match): ${patch.description}`);
-          }
-        }
-        if (applied > 0) {
-          writeFileSync(absPath, content, "utf-8");
-          log.success(`Updated ${file.path} (${applied}/${file.patches.length} patches applied)`);
-        }
-      }
+      this.applyPatches(coderResult, options);
     } else if (!options.write && coderResult.improvedFiles.length > 0) {
       log.info("Dry run — use --write to apply changes to disk.");
     }
@@ -263,18 +265,8 @@ export class Orchestrator {
   }
 
   async generateTests(targetPath: string, options: OrchestratorOptions = {}): Promise<TestResult> {
-    log.step("Collecting files...");
-    const files = await collectFiles(targetPath, this.config);
-
-    if (files.length === 0) {
-      log.warn("No matching files found.");
-      return { testFiles: [], summary: "No files to test." };
-    }
-
-    log.info(`Found ${files.length} file(s) to generate tests for`);
-    if (options.verbose) {
-      for (const f of files) log.verbose(`  ${f.path}`);
-    }
+    const files = await this.gatherFiles(targetPath, options.verbose);
+    if (!files) return { testFiles: [], summary: "No files to test." };
 
     log.step("🧪 Tester agent generating tests...");
     const onToken = this.createStreamCallback(options.verbose ?? false);
@@ -310,18 +302,8 @@ export class Orchestrator {
   }
 
   async plan(targetPath: string, options: OrchestratorOptions = {}): Promise<PlanResult> {
-    log.step("Collecting files...");
-    const files = await collectFiles(targetPath, this.config);
-
-    if (files.length === 0) {
-      log.warn("No matching files found.");
-      return { goal: "", tasks: [], risks: [], summary: "No files to analyze." };
-    }
-
-    log.info(`Found ${files.length} file(s) to analyze`);
-    if (options.verbose) {
-      for (const f of files) log.verbose(`  ${f.path}`);
-    }
+    const files = await this.gatherFiles(targetPath, options.verbose);
+    if (!files) return { goal: "", tasks: [], risks: [], summary: "No files to analyze." };
 
     log.step("🧠 Planner agent creating plan...");
     const onToken = this.createStreamCallback(options.verbose ?? false);
@@ -346,18 +328,8 @@ export class Orchestrator {
   }
 
   async generateDocs(targetPath: string, options: OrchestratorOptions = {}): Promise<DocsResult> {
-    log.step("Collecting files...");
-    const files = await collectFiles(targetPath, this.config);
-
-    if (files.length === 0) {
-      log.warn("No matching files found.");
-      return { docs: [], summary: "No files to document." };
-    }
-
-    log.info(`Found ${files.length} file(s) to document`);
-    if (options.verbose) {
-      for (const f of files) log.verbose(`  ${f.path}`);
-    }
+    const files = await this.gatherFiles(targetPath, options.verbose);
+    if (!files) return { docs: [], summary: "No files to document." };
 
     log.step("📝 Docs agent generating documentation...");
     const onToken = this.createStreamCallback(options.verbose ?? false);
@@ -397,18 +369,8 @@ export class Orchestrator {
   }
 
   async securityAudit(targetPath: string, options: OrchestratorOptions = {}): Promise<SecurityResult> {
-    log.step("Collecting files...");
-    const files = await collectFiles(targetPath, this.config);
-
-    if (files.length === 0) {
-      log.warn("No matching files found.");
-      return { findings: [], riskScore: "none", summary: "No files to audit." };
-    }
-
-    log.info(`Found ${files.length} file(s) to audit`);
-    if (options.verbose) {
-      for (const f of files) log.verbose(`  ${f.path}`);
-    }
+    const files = await this.gatherFiles(targetPath, options.verbose);
+    if (!files) return { findings: [], riskScore: "none", summary: "No files to audit." };
 
     // Load project memory
     const memory = loadMemory(targetPath);
@@ -463,18 +425,8 @@ export class Orchestrator {
   }
 
   async designAudit(targetPath: string, options: OrchestratorOptions = {}): Promise<DesignerResult> {
-    log.step("Collecting files...");
-    const files = await collectFiles(targetPath, this.config);
-
-    if (files.length === 0) {
-      log.warn("No matching files found.");
-      return { findings: [], designHealthScore: "none", summary: "No files to audit." };
-    }
-
-    log.info(`Found ${files.length} file(s) to audit`);
-    if (options.verbose) {
-      for (const f of files) log.verbose(`  ${f.path}`);
-    }
+    const files = await this.gatherFiles(targetPath, options.verbose);
+    if (!files) return { findings: [], designHealthScore: "none", summary: "No files to audit." };
 
     // Load project memory
     const memory = loadMemory(targetPath);
@@ -537,10 +489,9 @@ export class Orchestrator {
     }
 
     const skip = new Set(options.skip ?? []);
-    const files = await collectFiles(targetPath, this.config);
+    const files = await this.gatherFiles(targetPath, options.verbose);
 
-    if (files.length === 0) {
-      log.warn("No matching files found.");
+    if (!files) {
       return {
         review: { findings: [], summary: "" },
         security: { findings: [], riskScore: "none", summary: "" },
@@ -548,8 +499,6 @@ export class Orchestrator {
         totalFindings: 0, totalPatches: 0, riskScore: "none", summary: "No files to audit.",
       };
     }
-
-    log.info(`Found ${files.length} file(s) to audit`);
     const onToken = this.createStreamCallback(options.verbose ?? false);
     const context = { files, config: this.config };
 
@@ -705,24 +654,7 @@ export class Orchestrator {
     // Apply changes if --write
     if (options.write) {
       // Apply patches
-      for (const file of coderResult.improvedFiles) {
-        const absPath = resolve(file.path);
-        if (options.backup) {
-          copyFileSync(absPath, absPath + ".bak");
-        }
-        let content = readFileSync(absPath, "utf-8");
-        let applied = 0;
-        for (const patch of file.patches) {
-          if (content.includes(patch.find)) {
-            content = content.replace(patch.find, patch.replace);
-            applied++;
-          }
-        }
-        if (applied > 0) {
-          writeFileSync(absPath, content, "utf-8");
-          log.success(`Patched ${file.path} (${applied}/${file.patches.length})`);
-        }
-      }
+      this.applyPatches(coderResult, options);
       // Write tests
       if (testResult) {
         for (const file of testResult.testFiles) {
@@ -754,18 +686,8 @@ export class Orchestrator {
       throw new Error(`Custom agent "${agentName}" not found. Available: ${available}`);
     }
 
-    log.step("Collecting files...");
-    const files = await collectFiles(targetPath, this.config);
-
-    if (files.length === 0) {
-      log.warn("No matching files found.");
-      return { findings: [], summary: "No files to review." };
-    }
-
-    log.info(`Found ${files.length} file(s) to review`);
-    if (options.verbose) {
-      for (const f of files) log.verbose(`  ${f.path}`);
-    }
+    const files = await this.gatherFiles(targetPath, options.verbose);
+    if (!files) return { findings: [], summary: "No files to review." };
 
     log.step(`🔧 Custom agent "${agentConfig.name}" reviewing code...`);
     const onToken = this.createStreamCallback(options.verbose ?? false);
